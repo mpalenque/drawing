@@ -132,3 +132,19 @@ body {
   vector-effect: non-scaling-stroke;
   transition: none;
 }
+
+.slot-canvas svg .locked-contour {
+  fill: #000000 !important;
+  stroke: none !important;
+  pointer-events: none !important;
+}
+
+.slot-canvas svg.group-coloring-svg path:not(.draw-stroke):not(.locked-contour),
+.slot-canvas svg.group-coloring-svg polygon:not(.draw-stroke):not(.locked-contour),
+.slot-canvas svg.group-coloring-svg circle:not(.draw-stroke):not(.locked-contour),
+.slot-canvas svg.group-coloring-svg ellipse:not(.draw-stroke):not(.locked-contour),
+.slot-canvas svg.group-coloring-svg rect:not(.draw-stroke):not(.locked-contour) {
+  fill: #ffffff !important;
+  stroke: #1a1a1a !important;
+  stroke-width: 1.5px;
+}

@@ -6,8 +6,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const BRUSH_SIZE_PX = 18;
   const MIN_POINT_DISTANCE_PX = 2.5;
+  const SHAPE_SELECTOR = 'path, polygon, circle, ellipse, rect';
+  const COLORABLE_GROUP_IDS = [
+    'PIEL',
+    'VIOLETA',
+    'VERDE',
+    'ROJO',
+    'ORO',
+    'CELESTE',
+    'GRIS_CLARO',
+    'GRIS_MEDIO',
+    'GRIS_OSCURO'
+  ];
 
-  let currentColor = '#d62828'; // Default: red
+  let currentColor = '#562E6B'; // Default: violeta
   let currentSVG = 'woody_clean.svg'; // Default character
   let activeStroke = null;
   let clipCounter = 0;
@@ -120,12 +132,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const svg = svgWrapper.querySelector('svg');
     if (!svg) return;
 
-    const target = getColorableTargetAtPoint(e.clientX, e.clientY);
-    if (!target || !svg.contains(target)) return;
+    const hitTarget = getColorableTargetAtPoint(e.clientX, e.clientY);
+    if (!hitTarget || !svg.contains(hitTarget)) return;
 
     e.preventDefault();
     e.stopPropagation();
 
+    const target = getDrawingTarget(hitTarget);
     const parent = getDrawableParent(target);
     const point = clientPointToLocal(parent, e.clientX, e.clientY);
     if (!point) return;
@@ -194,16 +207,52 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getColorableTargetAtPoint(clientX, clientY) {
-    const target = document.elementFromPoint(clientX, clientY);
-    if (!target || !svgWrapper.contains(target) || !(target instanceof Element)) {
+    const targets = document.elementsFromPoint
+      ? document.elementsFromPoint(clientX, clientY)
+      : [document.elementFromPoint(clientX, clientY)];
+
+    for (const target of targets) {
+      if (!target || !svgWrapper.contains(target) || !(target instanceof Element)) {
+        continue;
+      }
+
+      const svg = target.ownerSVGElement || (target.matches('svg') ? target : null);
+      if (svg?.classList.contains('group-coloring-svg')) {
+        const groupedTarget = getGroupedColoringTarget(svg, target);
+        if (groupedTarget) return groupedTarget;
+        continue;
+      }
+
+      const colorableTarget = target.closest('.colorable');
+      if (colorableTarget) return colorableTarget;
+    }
+
+    return null;
+  }
+
+  function getGroupedColoringTarget(svg, target) {
+    if (!target.matches(SHAPE_SELECTOR)) {
       return null;
     }
 
-    return target.closest('.colorable');
+    const group = target.closest('g[id]');
+    const groupName = normalizeColorGroupName(group?.id);
+    if (groupName) {
+      return group;
+    }
+
+    const shapeName = normalizeColorGroupName(target.id);
+    return shapeName ? target : null;
+  }
+
+  function getDrawingTarget(target) {
+    return target;
   }
 
   function getDrawableParent(target) {
-    return target.parentNode instanceof SVGElement ? target.parentNode : target.ownerSVGElement;
+    return target.classList?.contains('colorable-group')
+      ? target.ownerSVGElement
+      : target.parentNode instanceof SVGElement ? target.parentNode : target.ownerSVGElement;
   }
 
   function clientPointToLocal(parent, clientX, clientY) {
@@ -243,23 +292,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const clipId = `clip-${sourceId}-${++clipCounter}`;
     const clipPath = document.createElementNS(SVG_NS, 'clipPath');
-    const clipShape = target.cloneNode(false);
 
     clipPath.id = clipId;
     clipPath.setAttribute('clipPathUnits', 'userSpaceOnUse');
 
-    clipShape.removeAttribute('id');
-    clipShape.removeAttribute('class');
-    clipShape.removeAttribute('style');
-    clipShape.removeAttribute('pointer-events');
-    clipShape.setAttribute('fill', '#000000');
-    clipShape.setAttribute('stroke', 'none');
-
-    clipPath.appendChild(clipShape);
+    appendClipShapes(clipPath, target);
     ensureDefs(svg).appendChild(clipPath);
 
     target.dataset.clipPathId = clipId;
     return clipId;
+  }
+
+  function appendClipShapes(clipPath, target) {
+    const shapes = target.matches(SHAPE_SELECTOR)
+      ? [target]
+      : getPaintableShapes(target);
+
+    shapes.forEach(shape => {
+      const clipShape = shape.cloneNode(false);
+      prepareClipShape(clipShape);
+      clipPath.appendChild(clipShape);
+    });
+  }
+
+  function prepareClipShape(root) {
+    const elements = [root, ...Array.from(root.querySelectorAll('*'))];
+    elements.forEach(el => {
+      el.removeAttribute('id');
+      el.removeAttribute('class');
+      el.removeAttribute('style');
+      el.removeAttribute('pointer-events');
+      if (el.matches?.(SHAPE_SELECTOR)) {
+        el.setAttribute('fill', '#000000');
+        el.setAttribute('stroke', 'none');
+      }
+    });
   }
 
   function ensureDrawingLayer(parent) {
@@ -330,10 +397,98 @@ document.addEventListener('DOMContentLoaded', () => {
     return points.map(point => [formatNumber(point.x), formatNumber(point.y)]);
   }
 
-  function setupColoringPaths(svg) {
-    const colorableElements = svg.querySelectorAll('path, polygon, circle, ellipse, rect');
+  function findSvgElementById(svg, id) {
+    if (!id) return null;
 
+    if (window.CSS?.escape) {
+      return svg.querySelector(`#${CSS.escape(id)}`);
+    }
+
+    return Array.from(svg.querySelectorAll('[id]')).find(el => el.id === id) || null;
+  }
+
+  function normalizeColorGroupName(id) {
+    const normalizedId = (id || '').toUpperCase();
+    return COLORABLE_GROUP_IDS.find(groupId => (
+      normalizedId === groupId || normalizedId.startsWith(`${groupId}_`)
+    )) || null;
+  }
+
+  function isInsideColorableGroup(el) {
+    return Boolean(el.parentElement?.closest?.('g.colorable-group'));
+  }
+
+  function markColorableTarget(el, groupName) {
+    if (!el.id) {
+      el.id = groupName || `grupo-color-${Date.now()}`;
+    }
+
+    if (el.matches(SHAPE_SELECTOR)) {
+      el.classList.add('colorable');
+    }
+    el.classList.add('colorable-group');
+    el.dataset.colorGroup = groupName || el.id;
+  }
+
+  function markGroupShapes(group, groupName) {
+    getPaintableShapes(group).forEach(el => {
+      el.classList.add('colorable');
+      el.dataset.colorGroupTarget = group.id;
+      el.dataset.colorGroup = groupName || group.id;
+    });
+  }
+
+  function getPaintableShapes(target) {
+    const shapes = target.matches(SHAPE_SELECTOR)
+      ? [target]
+      : Array.from(target.querySelectorAll(SHAPE_SELECTOR));
+
+    return shapes.filter(el => (
+      el.id !== 'CONTORNO' &&
+      !el.closest('.drawing-layer') &&
+      !el.classList.contains('draw-stroke')
+    ));
+  }
+
+  function paintColorTarget(target, color) {
+    getPaintableShapes(target).forEach(el => {
+      el.style.fill = color;
+      el.classList.remove('crayon-anim');
+      void el.getBoundingClientRect();
+      el.classList.add('crayon-anim');
+    });
+  }
+
+  function setupColoringPaths(svg) {
+    const contour = findSvgElementById(svg, 'CONTORNO');
+    if (contour) {
+      contour.classList.add('locked-contour');
+      contour.style.fill = '#000000';
+      contour.style.stroke = 'none';
+      contour.style.pointerEvents = 'none';
+    }
+
+    const namedGroups = Array.from(svg.querySelectorAll('g[id]'))
+      .map(el => ({ el, groupName: normalizeColorGroupName(el.id) }))
+      .filter(item => item.groupName);
+
+    const namedShapes = Array.from(svg.querySelectorAll(`${SHAPE_SELECTOR}[id]`))
+      .map(el => ({ el, groupName: normalizeColorGroupName(el.id) }))
+      .filter(item => item.groupName && !isInsideColorableGroup(item.el));
+
+    if (namedGroups.length || namedShapes.length) {
+      svg.classList.add('group-coloring-svg');
+      namedGroups.forEach(({ el, groupName }) => {
+        markColorableTarget(el, groupName);
+        markGroupShapes(el, groupName);
+      });
+      namedShapes.forEach(({ el, groupName }) => markColorableTarget(el, groupName));
+      return;
+    }
+
+    const colorableElements = svg.querySelectorAll(SHAPE_SELECTOR);
     colorableElements.forEach((el, index) => {
+      if (el.id === 'CONTORNO') return;
       if (!el.id) {
         el.id = `capa-${index + 1}`;
       }

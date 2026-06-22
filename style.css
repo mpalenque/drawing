@@ -164,12 +164,35 @@ h1 {
   transition: none;
 }
 
+#svg-wrapper svg .locked-contour {
+  fill: #000000 !important;
+  stroke: none !important;
+  pointer-events: none !important;
+}
+
 /* Exclude the outer rectangle/background path (usually the first huge path) */
-#svg-wrapper svg path:first-child {
+#svg-wrapper svg:not(.group-coloring-svg) path:first-child {
   fill: #ffffff;
   stroke: #1a1a1a;
   stroke-width: 1.5px;
   pointer-events: none;
+}
+
+#svg-wrapper svg.group-coloring-svg path:not(.draw-stroke):not(.locked-contour),
+#svg-wrapper svg.group-coloring-svg polygon:not(.draw-stroke):not(.locked-contour),
+#svg-wrapper svg.group-coloring-svg circle:not(.draw-stroke):not(.locked-contour),
+#svg-wrapper svg.group-coloring-svg ellipse:not(.draw-stroke):not(.locked-contour),
+#svg-wrapper svg.group-coloring-svg rect:not(.draw-stroke):not(.locked-contour) {
+  fill: #ffffff !important;
+  stroke: #1a1a1a !important;
+  stroke-width: 1.5px;
+  pointer-events: auto;
+}
+
+#svg-wrapper svg.group-coloring-svg .colorable,
+#svg-wrapper svg.group-coloring-svg .colorable-group {
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .loading-msg {
@@ -274,15 +297,15 @@ h1 {
   flex-shrink: 0;
 }
 
-.color-btn[data-color="#d62828"] { background-color: #d62828; }
-.color-btn[data-color="#f77f00"] { background-color: #f77f00; }
-.color-btn[data-color="#fcbf49"] { background-color: #fcbf49; }
-.color-btn[data-color="#ffcdb2"] { background-color: #ffcdb2; }
-.color-btn[data-color="#2a6f97"] { background-color: #2a6f97; }
-.color-btn[data-color="#582f0e"] { background-color: #582f0e; }
-.color-btn[data-color="#1a1a1a"] { background-color: #1a1a1a; }
-.color-btn[data-color="#ff007f"] { background-color: #ff007f; }
-.color-btn[data-color="#39ff14"] { background-color: #39ff14; }
+.color-btn[data-color="#562E6B"] { background-color: #562E6B; }
+.color-btn[data-color="#699F58"] { background-color: #699F58; }
+.color-btn[data-color="#E72E20"] { background-color: #E72E20; }
+.color-btn[data-color="#DC961F"] { background-color: #DC961F; }
+.color-btn[data-color="#52A4C1"] { background-color: #52A4C1; }
+.color-btn[data-color="#E0D9CE"] { background-color: #E0D9CE; }
+.color-btn[data-color="#9CA0A0"] { background-color: #9CA0A0; }
+.color-btn[data-color="#3E3E3D"] { background-color: #3E3E3D; }
+.color-btn[data-color="#E0B090"] { background-color: #E0B090; }
 
 .erase-btn {
   background: #ffffff !important;
