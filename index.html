@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Toy Story Drawing App - Colorea tus personajes favoritos de Toy Story en tu tablet.">
+  <title>Toy Story - ¡A Colorear!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- DRAG & DROP OVERLAY -->
+  <div id="drag-overlay" class="drag-overlay">
+    <div class="drag-content">
+      <span class="icon">📁</span>
+      <h2>Suelta tu SVG aquí</h2>
+      <p>Pinta tu propio diseño</p>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-glass">
+      <div class="dot"></div>
+      <h1>Toy Story — ¡A Colorear!</h1>
+    </div>
+  </header>
+
+  <!-- MAIN CANVAS -->
+  <main class="canvas-container">
+    <div class="canvas-card" id="canvas-card">
+      <div id="svg-wrapper">
+        <!-- SVG is injected here dynamically -->
+        <div class="loading-msg">Selecciona un personaje abajo ↓</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- BOTTOM CONTROLS: PALETTE + CHARACTER SELECTOR -->
+  <footer class="controls-bar">
+
+    <!-- Character Selector -->
+    <div class="char-dock" id="char-dock">
+      <button class="char-btn active" id="char-woody" data-svg="woody_clean.svg" aria-label="Woody">1</button>
+      <button class="char-btn" id="char-buzz" data-svg="buzz_lightyear_clean.svg" aria-label="Buzz Lightyear">2</button>
+      <button class="char-btn" id="char-jessie" data-svg="jessie_bullseye_clean.svg" aria-label="Jessie & Bullseye">3</button>
+      <button class="char-btn" id="char-frog" data-svg="the_pond_frog_clean.svg" aria-label="La Rana del Lago">4</button>
+      <button class="char-btn" id="char-logo" data-svg="toy_story_5_logo_clean.svg" aria-label="Logo Toy Story 5">5</button>
+    </div>
+
+    <!-- Color Palette -->
+    <div class="palette-dock" id="palette">
+      <button class="color-btn active" id="btn-red"    data-color="#d62828" aria-label="Rojo"></button>
+      <button class="color-btn"        id="btn-orange" data-color="#f77f00" aria-label="Naranja"></button>
+      <button class="color-btn"        id="btn-yellow" data-color="#fcbf49" aria-label="Amarillo"></button>
+      <button class="color-btn"        id="btn-skin"   data-color="#ffcdb2" aria-label="Piel"></button>
+      <button class="color-btn"        id="btn-blue"   data-color="#2a6f97" aria-label="Azul"></button>
+      <button class="color-btn"        id="btn-brown"  data-color="#582f0e" aria-label="Marrón"></button>
+      <button class="color-btn"        id="btn-black"  data-color="#1a1a1a" aria-label="Negro"></button>
+      <button class="color-btn"        id="btn-neon"   data-color="#ff007f" aria-label="Rosa Loco"></button>
+      <button class="color-btn"        id="btn-alien"  data-color="#39ff14" aria-label="Verde Loco"></button>
+      <button class="color-btn erase-btn" id="btn-erase" data-color="#FFFFFF" aria-label="Borrar">✕</button>
+    </div>
+
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

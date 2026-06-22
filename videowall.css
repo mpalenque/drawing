@@ -1,0 +1,121 @@
+/* ===================================
+   Google Fonts
+   =================================== */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap');
+
+/* ===================================
+   Variables & Reset
+   =================================== */
+:root {
+  --font: 'Outfit', -apple-system, sans-serif;
+  --bg: #050508;
+  --slot-bg: #13141c;
+  --slot-border: rgba(255, 255, 255, 0.1);
+  --canvas-bg: #fafafa;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: var(--font);
+  background: var(--bg);
+  color: #fff;
+}
+
+/* ===================================
+   4K Grid Layout (3x2)
+   =================================== */
+.videowall-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  width: 100vw;
+  height: 100vh;
+  gap: 0;
+  padding: 0;
+}
+
+/* ===================================
+   Slot Styling
+   =================================== */
+.wall-slot {
+  background: #000;
+  border: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.wall-slot.has-svg {
+  background: var(--canvas-bg);
+}
+
+.slot-header {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 10px 20px;
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #888;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.wall-slot.active .slot-header {
+  color: #06d6a0;
+  text-shadow: 0 0 10px rgba(6, 214, 160, 0.5);
+}
+
+.slot-canvas {
+  flex: 1;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+}
+
+.empty-msg {
+  color: #333;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+/* ===================================
+   SVG Styling (Videowall specific)
+   =================================== */
+.slot-canvas svg {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+}
+
+.slot-canvas svg path,
+.slot-canvas svg polygon,
+.slot-canvas svg circle,
+.slot-canvas svg ellipse,
+.slot-canvas svg rect {
+  fill: #ffffff;
+  stroke: #1a1a1a;
+  stroke-width: 1.5px;
+  transition: fill 0.2s ease;
+  vector-effect: non-scaling-stroke;
+}
+
+.slot-canvas svg path:first-child {
+  fill: #ffffff;
+  stroke: #1a1a1a;
+  stroke-width: 1.5px;
+}

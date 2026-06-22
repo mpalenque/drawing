@@ -1,0 +1,375 @@
+/* ===================================
+   Google Fonts
+   =================================== */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap');
+
+/* ===================================
+   CSS Variables
+   =================================== */
+:root {
+  --font: 'Outfit', -apple-system, sans-serif;
+  --bg: radial-gradient(ellipse at top, #1b1d2e 0%, #0a0a10 100%);
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --shadow-deep: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --canvas-bg: #fafafa;
+  --active-ring: 0 0 0 4px #ffffff, 0 0 20px rgba(255,255,255,0.4);
+}
+
+/* ===================================
+   Reset & Base
+   =================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  font-family: var(--font);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  /* Tablet critical: block all default touch gestures */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  overscroll-behavior: none;
+}
+
+/* ===================================
+   Header
+   =================================== */
+header {
+  width: 100%;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.header-glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  padding: 10px 28px;
+  border-radius: 50px;
+  box-shadow: var(--shadow-deep);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeDown 0.6s ease;
+}
+
+h1 {
+  font-size: clamp(1rem, 3.5vw, 1.4rem);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e63946;
+  box-shadow: 0 0 12px #e63946;
+  animation: pulse 2s infinite alternate;
+  flex-shrink: 0;
+}
+
+/* ===================================
+   Canvas
+   =================================== */
+.canvas-container {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 16px;
+  touch-action: none;
+  min-height: 0; /* allow flex shrink */
+}
+
+.canvas-card {
+  background: var(--canvas-bg);
+  border-radius: 24px;
+  box-shadow: var(--shadow-deep), inset 0 1px 0 rgba(255,255,255,0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  max-width: 640px;
+  max-height: 100%;
+  animation: scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+#svg-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+/* Make inline SVGs colorable */
+#svg-wrapper svg {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* THE KEY RULE: override fill so paths can be colored */
+#svg-wrapper svg path,
+#svg-wrapper svg polygon,
+#svg-wrapper svg circle,
+#svg-wrapper svg ellipse,
+#svg-wrapper svg rect {
+  fill: #ffffff;
+  stroke: #1a1a1a;
+  stroke-width: 1.5px;
+  cursor: pointer;
+  transition: fill 0.2s ease;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Exclude the outer rectangle/background path (usually the first huge path) */
+#svg-wrapper svg path:first-child {
+  fill: #ffffff;
+  stroke: #1a1a1a;
+  stroke-width: 1.5px;
+  pointer-events: none;
+}
+
+.loading-msg {
+  color: #888;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 40px;
+}
+
+/* ===================================
+   Bottom Controls Bar
+   =================================== */
+.controls-bar {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+/* ===================================
+   Character Selector Dock
+   =================================== */
+.char-dock {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  padding: 8px 16px;
+  border-radius: 50px;
+  box-shadow: var(--shadow-deep);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  animation: fadeUp 0.7s ease;
+}
+
+.char-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: rgba(255,255,255,0.08);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), background 0.2s, border-color 0.2s;
+  line-height: 1;
+}
+
+.char-btn:hover {
+  transform: scale(1.15);
+  background: rgba(255,255,255,0.15);
+}
+
+.char-btn.active {
+  transform: scale(1.2);
+  border-color: #ffffff;
+  background: rgba(255,255,255,0.2);
+  box-shadow: 0 0 15px rgba(255,255,255,0.3);
+}
+
+/* ===================================
+   Palette Dock
+   =================================== */
+.palette-dock {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  padding: 10px 20px;
+  border-radius: 50px;
+  box-shadow: var(--shadow-deep);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+  animation: fadeUp 0.8s ease;
+}
+
+.color-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.2);
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  flex-shrink: 0;
+}
+
+.color-btn[data-color="#d62828"] { background-color: #d62828; }
+.color-btn[data-color="#f77f00"] { background-color: #f77f00; }
+.color-btn[data-color="#fcbf49"] { background-color: #fcbf49; }
+.color-btn[data-color="#ffcdb2"] { background-color: #ffcdb2; }
+.color-btn[data-color="#2a6f97"] { background-color: #2a6f97; }
+.color-btn[data-color="#582f0e"] { background-color: #582f0e; }
+.color-btn[data-color="#1a1a1a"] { background-color: #1a1a1a; }
+.color-btn[data-color="#ff007f"] { background-color: #ff007f; }
+.color-btn[data-color="#39ff14"] { background-color: #39ff14; }
+
+.erase-btn {
+  background: #ffffff !important;
+  color: #555;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: rgba(0,0,0,0.2);
+}
+
+.color-btn:hover {
+  transform: scale(1.15);
+}
+
+.color-btn.active {
+  transform: scale(1.25);
+  box-shadow: var(--active-ring);
+  border-color: #fff;
+}
+
+/* ===================================
+   Animations
+   =================================== */
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.93); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse {
+  0%   { transform: scale(0.9); box-shadow: 0 0 5px #e63946; }
+  100% { transform: scale(1.2); box-shadow: 0 0 16px #e63946; }
+}
+
+@keyframes crayonFill {
+  0%   { fill-opacity: 0.2; }
+  30%  { fill-opacity: 0.8; }
+  60%  { fill-opacity: 0.5; }
+  100% { fill-opacity: 1; }
+}
+
+.crayon-anim {
+  animation: crayonFill 0.3s steps(4) forwards;
+}
+
+/* ===================================
+   Drag & Drop Overlay
+   =================================== */
+.drag-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(10, 10, 16, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.drag-overlay.active {
+  opacity: 1;
+}
+
+.drag-content {
+  background: var(--glass-bg);
+  border: 3px dashed rgba(255,255,255,0.4);
+  border-radius: 24px;
+  padding: 50px 80px;
+  text-align: center;
+  color: #fff;
+  box-shadow: var(--shadow-deep);
+  transform: scale(0.9);
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.drag-overlay.active .drag-content {
+  transform: scale(1);
+}
+
+.drag-content .icon {
+  font-size: 5rem;
+  display: block;
+  margin-bottom: 15px;
+}
