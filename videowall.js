@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const BRUSH_SIZE_PX = 18;
+
   const socket = typeof io !== 'undefined' ? io() : null;
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -9,6 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const syncChannel = !socket && typeof BroadcastChannel !== 'undefined'
     ? new BroadcastChannel(channelKey)
     : null;
+  let clipCounter = 0;
+  let strokeCounter = 0;
 
   // Estado local del videowall para saber qué SVG tiene cada tablet cargado
   const tabletStates = {
@@ -69,6 +74,119 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function applyStrokeToSlot(slotCanvas, strokeData) {
+    const svg = slotCanvas.querySelector('svg');
+    if (!svg) return;
+
+    const target = findSvgElementById(svg, strokeData.elementId);
+    if (!target) return;
+
+    const parent = getDrawableParent(target);
+    const points = (strokeData.points || []).map(([x, y]) => ({ x, y }));
+    if (!points.length) return;
+
+    const clipId = ensureClipPathForTarget(svg, target);
+    const pathEl = createStrokePath(parent, clipId, strokeData.color, strokeData.brushSizePx);
+    pathEl.setAttribute('d', buildPathData(points));
+  }
+
+  function findSvgElementById(svg, id) {
+    if (!id) return null;
+
+    if (window.CSS?.escape) {
+      return svg.querySelector(`#${CSS.escape(id)}`);
+    }
+
+    return Array.from(svg.querySelectorAll('[id]')).find(el => el.id === id) || null;
+  }
+
+  function getDrawableParent(target) {
+    return target.parentNode instanceof SVGElement ? target.parentNode : target.ownerSVGElement;
+  }
+
+  function ensureDefs(svg) {
+    let defs = Array.from(svg.children).find(child => child.classList?.contains('drawing-defs'));
+    if (!defs) {
+      defs = document.createElementNS(SVG_NS, 'defs');
+      defs.classList.add('drawing-defs');
+      svg.insertBefore(defs, svg.firstChild);
+    }
+
+    return defs;
+  }
+
+  function ensureClipPathForTarget(svg, target) {
+    if (target.dataset.clipPathId) return target.dataset.clipPathId;
+
+    const clipId = `wall-clip-${sourceId}-${++clipCounter}`;
+    const clipPath = document.createElementNS(SVG_NS, 'clipPath');
+    const clipShape = target.cloneNode(false);
+
+    clipPath.id = clipId;
+    clipPath.setAttribute('clipPathUnits', 'userSpaceOnUse');
+
+    clipShape.removeAttribute('id');
+    clipShape.removeAttribute('class');
+    clipShape.removeAttribute('style');
+    clipShape.removeAttribute('pointer-events');
+    clipShape.setAttribute('fill', '#000000');
+    clipShape.setAttribute('stroke', 'none');
+
+    clipPath.appendChild(clipShape);
+    ensureDefs(svg).appendChild(clipPath);
+
+    target.dataset.clipPathId = clipId;
+    return clipId;
+  }
+
+  function ensureDrawingLayer(parent) {
+    let layer = Array.from(parent.children).find(child => child.classList?.contains('drawing-layer'));
+    if (!layer) {
+      layer = document.createElementNS(SVG_NS, 'g');
+      layer.classList.add('drawing-layer');
+      layer.setAttribute('pointer-events', 'none');
+      parent.appendChild(layer);
+    }
+
+    return layer;
+  }
+
+  function createStrokePath(parent, clipId, color, brushSizePx = BRUSH_SIZE_PX) {
+    const pathEl = document.createElementNS(SVG_NS, 'path');
+    pathEl.id = `trazo-wall-${Date.now()}-${++strokeCounter}`;
+    pathEl.classList.add('draw-stroke');
+    pathEl.setAttribute('clip-path', `url(#${clipId})`);
+    pathEl.setAttribute('pointer-events', 'none');
+    pathEl.style.fill = 'none';
+    pathEl.style.stroke = color || '#d62828';
+    pathEl.style.strokeWidth = `${brushSizePx || BRUSH_SIZE_PX}`;
+    pathEl.style.strokeLinecap = 'round';
+    pathEl.style.strokeLinejoin = 'round';
+    pathEl.style.vectorEffect = 'non-scaling-stroke';
+
+    ensureDrawingLayer(parent).appendChild(pathEl);
+    return pathEl;
+  }
+
+  function buildPathData(points) {
+    const [firstPoint] = points;
+    if (!firstPoint) return '';
+    if (points.length === 1) {
+      return `M ${formatNumber(firstPoint.x)} ${formatNumber(firstPoint.y)} l 0.01 0`;
+    }
+
+    const commands = [`M ${formatNumber(firstPoint.x)} ${formatNumber(firstPoint.y)}`];
+    for (let i = 1; i < points.length; i += 1) {
+      commands.push(`L ${formatNumber(points[i].x)} ${formatNumber(points[i].y)}`);
+    }
+
+    return commands.join(' ');
+  }
+
+  function formatNumber(value) {
+    return Number(value.toFixed(2));
+  }
+
   function handleSyncEvent(data) {
     if (!data || !data.type || !data.payload) return;
 
@@ -91,10 +209,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const slotCanvas = document.getElementById(`canvas-${tabletId}`);
       if (slotCanvas) {
-        const pathToColor = slotCanvas.querySelector(`#${elementId}`);
+        const svg = slotCanvas.querySelector('svg');
+        const pathToColor = svg ? findSvgElementById(svg, elementId) : null;
         if (pathToColor) {
           pathToColor.style.fill = color;
         }
+      }
+    }
+
+    if (data.type === 'dibujar_trazo') {
+      const { tabletId, svgFile } = data.payload;
+      if (tabletId < 1 || tabletId > 6) return;
+
+      if (tabletStates[tabletId].currentSVG !== svgFile) {
+        console.warn(`Desincronización en tablet ${tabletId}. Tiene ${svgFile} pero el videowall tiene ${tabletStates[tabletId].currentSVG}`);
+      }
+
+      const slotCanvas = document.getElementById(`canvas-${tabletId}`);
+      if (slotCanvas) {
+        applyStrokeToSlot(slotCanvas, data.payload);
       }
     }
   }
@@ -107,6 +240,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('pintar_capa', (payload) => {
       handleSyncEvent({ type: 'pintar_capa', payload });
+    });
+
+    socket.on('dibujar_trazo', (payload) => {
+      handleSyncEvent({ type: 'dibujar_trazo', payload });
     });
   } else {
     console.info('Socket.io no disponible. Usando sincronización local para GitHub Pages.');

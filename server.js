@@ -13,7 +13,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Servir archivos estáticos del directorio actual
 app.use(express.static(__dirname));
@@ -41,6 +41,12 @@ io.on('connection', (socket) => {
     // data = { tabletId, svgFile, elementId, color }
     // Reenviar a todos (especialmente al videowall)
     io.emit('pintar_capa', data);
+  });
+
+  // Evento cuando una tablet dibuja un trazo dentro de una capa
+  socket.on('dibujar_trazo', (data) => {
+    // data = { tabletId, svgFile, elementId, color, brushSizePx, points }
+    io.emit('dibujar_trazo', data);
   });
 
   // Evento cuando una tablet cambia de personaje o carga un SVG nuevo

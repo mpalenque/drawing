@@ -3,9 +3,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // ========================
   // 1. STATE
   // ========================
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const BRUSH_SIZE_PX = 18;
+  const MIN_POINT_DISTANCE_PX = 2.5;
+
   let currentColor = '#d62828'; // Default: red
   let currentSVG = 'woody_clean.svg'; // Default character
-  let isDragging = false;
+  let activeStroke = null;
+  let clipCounter = 0;
+  let strokeCounter = 0;
 
   const urlParams = new URLSearchParams(window.location.search);
   const tabletId = Number.parseInt(urlParams.get('tabletId'), 10) || 1;
@@ -54,8 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  window.addEventListener('pointerup', () => { isDragging = false; });
-  window.addEventListener('pointercancel', () => { isDragging = false; });
+  window.addEventListener('pointerup', finishDrawing);
+  window.addEventListener('pointercancel', finishDrawing);
 
   // ========================
   // 2. DOM ELEMENTS
@@ -68,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 3. LOAD SVG
   // ========================
   function loadSVG(filename) {
+    activeStroke = null;
     currentSVG = filename;
 
     svgWrapper.innerHTML = '<div class="loading-msg">Cargando...</div>';
@@ -89,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
         svg.removeAttribute('height');
         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
-        // Apply coloring motor to all paths
+        // Mark drawable shapes so each pointer gesture can lock onto one element.
         setupColoringPaths(svg);
 
         // Solo emitir si el socket ya está conectado; si no, el evento 'connect'
@@ -103,53 +110,224 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================
-  // 4. COLORING MOTOR (DRAG TO PAINT)
+  // 4. DRAWING MOTOR (FREE DRAW INSIDE ONE SVG ELEMENT)
   // ========================
   
-  svgWrapper.addEventListener('pointerdown', (e) => {
-    isDragging = true;
-    handlePointerEvent(e);
-  });
+  svgWrapper.addEventListener('pointerdown', startDrawing);
+  svgWrapper.addEventListener('pointermove', continueDrawing);
 
-  svgWrapper.addEventListener('pointermove', (e) => {
-    if (isDragging) {
-      handlePointerEvent(e);
-    }
-  });
+  function startDrawing(e) {
+    const svg = svgWrapper.querySelector('svg');
+    if (!svg) return;
 
-  function handlePointerEvent(e) {
-    // Bloquear scroll
-    e.preventDefault(); 
+    const target = getColorableTargetAtPoint(e.clientX, e.clientY);
+    if (!target || !svg.contains(target)) return;
+
+    e.preventDefault();
     e.stopPropagation();
 
-    // Obtener elemento exacto bajo el puntero (crucial para arrastrar)
-    const target = document.elementFromPoint(e.clientX, e.clientY);
-    if (target && target.classList.contains('colorable')) {
-      paintPath(target);
+    const parent = getDrawableParent(target);
+    const point = clientPointToLocal(parent, e.clientX, e.clientY);
+    if (!point) return;
+
+    const clipId = ensureClipPathForTarget(svg, target);
+    const pathEl = createStrokePath(parent, clipId, currentColor);
+
+    activeStroke = {
+      pointerId: e.pointerId,
+      svg,
+      parent,
+      target,
+      pathEl,
+      color: currentColor,
+      points: [point],
+      minDistance: screenDistanceToLocal(parent, MIN_POINT_DISTANCE_PX)
+    };
+
+    renderStroke(activeStroke);
+
+    try {
+      svgWrapper.setPointerCapture(e.pointerId);
+    } catch (err) {
+      // Some embedded webviews do not allow pointer capture; drawing still works.
     }
   }
 
-  function paintPath(el) {
-    if (el.style.fill === currentColor) return; // Evitar repintar con el mismo color
+  function continueDrawing(e) {
+    if (!activeStroke || e.pointerId !== activeStroke.pointerId) return;
 
-    // Pintar
-    el.style.fill = currentColor;
+    e.preventDefault();
+    e.stopPropagation();
 
-    // Trigger animación crayon
-    el.classList.remove('crayon-anim');
-    void el.offsetWidth; // Reflow
-    el.classList.add('crayon-anim');
+    const point = clientPointToLocal(activeStroke.parent, e.clientX, e.clientY);
+    if (!point) return;
 
-    const pathId = el.id;
-    console.log(`Pintado: ${pathId} → ${currentColor}`);
+    addPointToStroke(activeStroke, point);
+  }
 
-    // Sincronización en tiempo real
-    publishEvent('pintar_capa', {
+  function finishDrawing(e) {
+    if (!activeStroke) return;
+    if (e && e.pointerId !== undefined && e.pointerId !== activeStroke.pointerId) return;
+
+    if (e && e.clientX !== undefined && e.clientY !== undefined) {
+      const point = clientPointToLocal(activeStroke.parent, e.clientX, e.clientY);
+      if (point) addPointToStroke(activeStroke, point);
+    }
+
+    const finishedStroke = activeStroke;
+    activeStroke = null;
+
+    try {
+      svgWrapper.releasePointerCapture(finishedStroke.pointerId);
+    } catch (err) {
+      // Pointer capture may not have been granted in every browser/webview.
+    }
+
+    publishEvent('dibujar_trazo', {
       tabletId,
       svgFile: currentSVG,
-      elementId: pathId,
-      color: currentColor
+      elementId: finishedStroke.target.id,
+      color: finishedStroke.color,
+      brushSizePx: BRUSH_SIZE_PX,
+      points: compactPoints(finishedStroke.points)
     });
+  }
+
+  function getColorableTargetAtPoint(clientX, clientY) {
+    const target = document.elementFromPoint(clientX, clientY);
+    if (!target || !svgWrapper.contains(target) || !(target instanceof Element)) {
+      return null;
+    }
+
+    return target.closest('.colorable');
+  }
+
+  function getDrawableParent(target) {
+    return target.parentNode instanceof SVGElement ? target.parentNode : target.ownerSVGElement;
+  }
+
+  function clientPointToLocal(parent, clientX, clientY) {
+    const svg = parent.ownerSVGElement || parent;
+    const matrix = parent.getScreenCTM();
+    if (!svg || !matrix) return null;
+
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+
+    const localPoint = point.matrixTransform(matrix.inverse());
+    return { x: localPoint.x, y: localPoint.y };
+  }
+
+  function screenDistanceToLocal(parent, px) {
+    const matrix = parent.getScreenCTM();
+    if (!matrix) return px;
+
+    const scale = Math.sqrt(Math.abs(matrix.a * matrix.d - matrix.b * matrix.c));
+    return scale ? px / scale : px;
+  }
+
+  function ensureDefs(svg) {
+    let defs = Array.from(svg.children).find(child => child.classList?.contains('drawing-defs'));
+    if (!defs) {
+      defs = document.createElementNS(SVG_NS, 'defs');
+      defs.classList.add('drawing-defs');
+      svg.insertBefore(defs, svg.firstChild);
+    }
+
+    return defs;
+  }
+
+  function ensureClipPathForTarget(svg, target) {
+    if (target.dataset.clipPathId) return target.dataset.clipPathId;
+
+    const clipId = `clip-${sourceId}-${++clipCounter}`;
+    const clipPath = document.createElementNS(SVG_NS, 'clipPath');
+    const clipShape = target.cloneNode(false);
+
+    clipPath.id = clipId;
+    clipPath.setAttribute('clipPathUnits', 'userSpaceOnUse');
+
+    clipShape.removeAttribute('id');
+    clipShape.removeAttribute('class');
+    clipShape.removeAttribute('style');
+    clipShape.removeAttribute('pointer-events');
+    clipShape.setAttribute('fill', '#000000');
+    clipShape.setAttribute('stroke', 'none');
+
+    clipPath.appendChild(clipShape);
+    ensureDefs(svg).appendChild(clipPath);
+
+    target.dataset.clipPathId = clipId;
+    return clipId;
+  }
+
+  function ensureDrawingLayer(parent) {
+    let layer = Array.from(parent.children).find(child => child.classList?.contains('drawing-layer'));
+    if (!layer) {
+      layer = document.createElementNS(SVG_NS, 'g');
+      layer.classList.add('drawing-layer');
+      layer.setAttribute('pointer-events', 'none');
+      parent.appendChild(layer);
+    }
+
+    return layer;
+  }
+
+  function createStrokePath(parent, clipId, color) {
+    const pathEl = document.createElementNS(SVG_NS, 'path');
+    pathEl.id = `trazo-${tabletId}-${Date.now()}-${++strokeCounter}`;
+    pathEl.classList.add('draw-stroke');
+    pathEl.setAttribute('clip-path', `url(#${clipId})`);
+    pathEl.setAttribute('pointer-events', 'none');
+    pathEl.style.fill = 'none';
+    pathEl.style.stroke = color;
+    pathEl.style.strokeWidth = `${BRUSH_SIZE_PX}`;
+    pathEl.style.strokeLinecap = 'round';
+    pathEl.style.strokeLinejoin = 'round';
+    pathEl.style.vectorEffect = 'non-scaling-stroke';
+
+    ensureDrawingLayer(parent).appendChild(pathEl);
+    return pathEl;
+  }
+
+  function addPointToStroke(stroke, point) {
+    const lastPoint = stroke.points[stroke.points.length - 1];
+    if (lastPoint && distanceBetween(lastPoint, point) < stroke.minDistance) return;
+
+    stroke.points.push(point);
+    renderStroke(stroke);
+  }
+
+  function renderStroke(stroke) {
+    stroke.pathEl.setAttribute('d', buildPathData(stroke.points));
+  }
+
+  function buildPathData(points) {
+    const [firstPoint] = points;
+    if (!firstPoint) return '';
+    if (points.length === 1) {
+      return `M ${formatNumber(firstPoint.x)} ${formatNumber(firstPoint.y)} l 0.01 0`;
+    }
+
+    const commands = [`M ${formatNumber(firstPoint.x)} ${formatNumber(firstPoint.y)}`];
+    for (let i = 1; i < points.length; i += 1) {
+      commands.push(`L ${formatNumber(points[i].x)} ${formatNumber(points[i].y)}`);
+    }
+
+    return commands.join(' ');
+  }
+
+  function distanceBetween(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
+  function formatNumber(value) {
+    return Number(value.toFixed(2));
+  }
+
+  function compactPoints(points) {
+    return points.map(point => [formatNumber(point.x), formatNumber(point.y)]);
   }
 
   function setupColoringPaths(svg) {
@@ -237,6 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Deseleccionar botones de personajes porque ahora usamos uno custom
         charButtons.forEach(b => b.classList.remove('active'));
+        activeStroke = null;
         currentSVG = 'custom_dropped_file';
 
         // Inyectar y preparar el SVG

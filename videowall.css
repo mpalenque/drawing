@@ -119,3 +119,16 @@ body {
   stroke: #1a1a1a;
   stroke-width: 1.5px;
 }
+
+.slot-canvas svg .drawing-layer,
+.slot-canvas svg .draw-stroke {
+  pointer-events: none;
+}
+
+.slot-canvas svg .draw-stroke {
+  fill: none !important;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: none;
+}

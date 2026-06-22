@@ -127,7 +127,7 @@ h1 {
   touch-action: none;
 }
 
-/* Make inline SVGs colorable */
+/* Make inline SVGs drawable */
 #svg-wrapper svg {
   width: 100%;
   height: 100%;
@@ -137,7 +137,7 @@ h1 {
   touch-action: none;
 }
 
-/* THE KEY RULE: override fill so paths can be colored */
+/* Base coloring-page look for the untouched SVG shapes */
 #svg-wrapper svg path,
 #svg-wrapper svg polygon,
 #svg-wrapper svg circle,
@@ -149,6 +149,19 @@ h1 {
   cursor: pointer;
   transition: fill 0.2s ease;
   vector-effect: non-scaling-stroke;
+}
+
+#svg-wrapper svg .drawing-layer,
+#svg-wrapper svg .draw-stroke {
+  pointer-events: none;
+}
+
+#svg-wrapper svg .draw-stroke {
+  fill: none !important;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: none;
 }
 
 /* Exclude the outer rectangle/background path (usually the first huge path) */
