@@ -55,6 +55,12 @@ io.on('connection', (socket) => {
     io.emit('cambiar_personaje', data);
   });
 
+  // Evento cuando termina el tiempo de una tablet y vuelve al selector
+  socket.on('terminar_dibujo', (data) => {
+    // data = { tabletId }
+    io.emit('terminar_dibujo', data);
+  });
+
   socket.on('disconnect', () => {
     console.log(`Cliente desconectado: ${socket.id}`);
   });

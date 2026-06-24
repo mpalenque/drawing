@@ -1,29 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
-
-  // ========================
-  // 1. STATE
-  // ========================
   const SVG_NS = 'http://www.w3.org/2000/svg';
+  const SHAPE_SELECTOR = 'path, polygon, circle, ellipse, rect';
   const BRUSH_SIZE_PX = 18;
   const MIN_POINT_DISTANCE_PX = 2.5;
-  const SHAPE_SELECTOR = 'path, polygon, circle, ellipse, rect';
-  const COLORABLE_GROUP_IDS = [
-    'PIEL',
-    'VIOLETA',
-    'VERDE',
-    'ROJO',
-    'ORO',
-    'CELESTE',
-    'GRIS_CLARO',
-    'GRIS_MEDIO',
-    'GRIS_OSCURO'
-  ];
+  const PAINT_SECONDS = 180;
 
-  let currentColor = '#562E6B'; // Default: violeta
-  let currentSVG = 'woody_clean.svg'; // Default character
+  let currentColor = '#000000';
+  let currentSVG = null;
   let activeStroke = null;
   let clipCounter = 0;
   let strokeCounter = 0;
+  let timerId = null;
+  let timeLeft = PAINT_SECONDS;
 
   const urlParams = new URLSearchParams(window.location.search);
   const tabletId = Number.parseInt(urlParams.get('tabletId'), 10) || 1;
@@ -36,59 +24,79 @@ document.addEventListener('DOMContentLoaded', () => {
     ? new BroadcastChannel(channelKey)
     : null;
 
+  const selectScreen = document.getElementById('select-screen');
+  const paintScreen = document.getElementById('paint-screen');
+  const svgWrapper = document.getElementById('svg-wrapper');
+  const palette = document.getElementById('palette');
+  const timerEl = document.getElementById('timer');
+  const choiceButtons = document.querySelectorAll('.choice-btn');
+  const backButton = document.getElementById('back-to-select');
+
   function publishEvent(type, payload) {
     if (socket && socket.connected) {
       socket.emit(type, payload);
       return;
     }
 
-    const message = {
-      type,
-      payload,
-      sourceId,
-      timestamp: Date.now()
-    };
+    const message = { type, payload, sourceId, timestamp: Date.now() };
+    if (syncChannel) syncChannel.postMessage(message);
 
-    if (syncChannel) {
-      syncChannel.postMessage(message);
-    }
-
-    // `storage` event allows fallback sync between tabs/windows in the same browser profile.
     try {
       localStorage.setItem(channelKey, JSON.stringify(message));
     } catch (err) {
-      console.warn('No se pudo publicar evento de sincronización local:', err);
+      console.warn('No se pudo publicar evento de sincronizacion local:', err);
     }
   }
 
-  // Cuando el socket se conecta, avisar al videowall qué personaje tiene esta tablet
   if (socket) {
     socket.on('connect', () => {
-      console.log(`[Tablet ${tabletId}] Socket conectado. Anunciando SVG: ${currentSVG}`);
-      publishEvent('cambiar_personaje', {
-        tabletId,
-        svgFile: currentSVG
-      });
+      if (currentSVG) {
+        publishEvent('cambiar_personaje', { tabletId, svgFile: currentSVG });
+      }
     });
   }
 
   window.addEventListener('pointerup', finishDrawing);
   window.addEventListener('pointercancel', finishDrawing);
+  svgWrapper.addEventListener('pointerdown', startDrawing);
+  svgWrapper.addEventListener('pointermove', continueDrawing);
 
-  // ========================
-  // 2. DOM ELEMENTS
-  // ========================
-  const svgWrapper = document.getElementById('svg-wrapper');
-  const paletteButtons = document.querySelectorAll('.color-btn');
-  const charButtons = document.querySelectorAll('.char-btn');
+  choiceButtons.forEach(btn => {
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const svgFile = btn.getAttribute('data-svg');
+      if (svgFile) startCharacter(svgFile);
+    });
+  });
 
-  // ========================
-  // 3. LOAD SVG
-  // ========================
+  backButton.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    returnToSelect(true);
+  });
+
+  function startCharacter(svgFile) {
+    selectScreen.classList.remove('active');
+    paintScreen.classList.add('active');
+    loadSVG(svgFile);
+  }
+
+  function returnToSelect(announce) {
+    activeStroke = null;
+    stopTimer();
+    currentSVG = null;
+    svgWrapper.innerHTML = '<div class="loading-msg">Cargando...</div>';
+    palette.innerHTML = '';
+    paintScreen.classList.remove('active');
+    selectScreen.classList.add('active');
+
+    if (announce) {
+      publishEvent('terminar_dibujo', { tabletId });
+    }
+  }
+
   function loadSVG(filename) {
     activeStroke = null;
     currentSVG = filename;
-
     svgWrapper.innerHTML = '<div class="loading-msg">Cargando...</div>';
 
     fetch(filename)
@@ -97,48 +105,37 @@ document.addEventListener('DOMContentLoaded', () => {
         return res.text();
       })
       .then(svgText => {
-        // Inject SVG inline so CSS and events can access its elements
         svgWrapper.innerHTML = svgText;
 
         const svg = svgWrapper.querySelector('svg');
         if (!svg) return;
 
-        // Remove any inline width/height from the SVG root so CSS controls it
         svg.removeAttribute('width');
         svg.removeAttribute('height');
         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
-        // Mark drawable shapes so each pointer gesture can lock onto one element.
-        setupColoringPaths(svg);
+        const setup = setupColoringSvg(svg);
+        buildPalette(setup.paletteColors);
+        startTimer();
 
-        // Solo emitir si el socket ya está conectado; si no, el evento 'connect'
-        // lo hará automáticamente cuando el socket se establezca
         publishEvent('cambiar_personaje', { tabletId, svgFile: currentSVG });
       })
       .catch(err => {
         console.error('Error loading SVG:', err);
-        svgWrapper.innerHTML = '<div class="loading-msg">Error al cargar el personaje.</div>';
+        svgWrapper.innerHTML = '<div class="loading-msg">Error al cargar el dibujo.</div>';
       });
   }
-
-  // ========================
-  // 4. DRAWING MOTOR (FREE DRAW INSIDE ONE SVG ELEMENT)
-  // ========================
-  
-  svgWrapper.addEventListener('pointerdown', startDrawing);
-  svgWrapper.addEventListener('pointermove', continueDrawing);
 
   function startDrawing(e) {
     const svg = svgWrapper.querySelector('svg');
     if (!svg) return;
 
-    const hitTarget = getColorableTargetAtPoint(e.clientX, e.clientY);
-    if (!hitTarget || !svg.contains(hitTarget)) return;
+    const target = getColorableTargetAtPoint(e.clientX, e.clientY);
+    if (!target || !svg.contains(target)) return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    const target = getDrawingTarget(hitTarget);
     const parent = getDrawableParent(target);
     const point = clientPointToLocal(parent, e.clientX, e.clientY);
     if (!point) return;
@@ -162,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       svgWrapper.setPointerCapture(e.pointerId);
     } catch (err) {
-      // Some embedded webviews do not allow pointer capture; drawing still works.
+      // Some webviews do not allow pointer capture; drawing still works.
     }
   }
 
@@ -173,9 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.stopPropagation();
 
     const point = clientPointToLocal(activeStroke.parent, e.clientX, e.clientY);
-    if (!point) return;
-
-    addPointToStroke(activeStroke, point);
+    if (point) addPointToStroke(activeStroke, point);
   }
 
   function finishDrawing(e) {
@@ -193,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       svgWrapper.releasePointerCapture(finishedStroke.pointerId);
     } catch (err) {
-      // Pointer capture may not have been granted in every browser/webview.
+      // Pointer capture may not have been granted.
     }
 
     publishEvent('dibujar_trazo', {
@@ -206,53 +201,152 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function setupColoringSvg(svg) {
+    const styleColors = parseSvgStyleColors(svg);
+    const colorableGroups = findColorableTargets(svg);
+    const paletteColors = [];
+
+    svg.classList.add('group-coloring-svg');
+
+    const contour = findSvgElementById(svg, 'CONTORNO');
+    if (contour) {
+      contour.classList.add('locked-contour');
+      contour.style.fill = '#000000';
+      contour.style.stroke = 'none';
+      contour.style.pointerEvents = 'none';
+    }
+
+    colorableGroups.forEach(target => {
+      const color = inferTargetColor(target, styleColors) || '#ffffff';
+      target.classList.add('colorable-group');
+      target.dataset.colorGroup = target.id;
+      target.dataset.originalColor = color;
+      if (color.toUpperCase() !== '#000000' && !paletteColors.includes(color)) {
+        paletteColors.push(color);
+      }
+
+      getPaintableShapes(target).forEach(shape => {
+        shape.classList.add('colorable');
+        shape.dataset.colorGroupTarget = target.id;
+        shape.style.fill = '#ffffff';
+        shape.style.stroke = '#1a1a1a';
+        shape.style.pointerEvents = 'auto';
+      });
+    });
+
+    if (!paletteColors.length) {
+      paletteColors.push('#E72E20', '#DC961F', '#52A4C1', '#699F58', '#562E6B', '#E0B090');
+    }
+
+    return { paletteColors };
+  }
+
+  function parseSvgStyleColors(svg) {
+    const colors = new Map();
+    const styleText = Array.from(svg.querySelectorAll('style'))
+      .map(style => style.textContent || '')
+      .join('\n');
+    const re = /\.([A-Za-z0-9_-]+)\s*\{\s*fill\s*:\s*(#[0-9A-Fa-f]{3,8})\s*;?\s*\}/g;
+    let match;
+    while ((match = re.exec(styleText))) {
+      colors.set(match[1], normalizeHex(match[2]));
+    }
+    return colors;
+  }
+
+  function findColorableTargets(svg) {
+    const groups = Array.from(svg.querySelectorAll('g[id]'))
+      .filter(group => group.id !== 'CONTORNO' && getPaintableShapes(group).length > 0);
+    const groupedShapes = new Set(groups.flatMap(group => getPaintableShapes(group)));
+    const namedShapes = Array.from(svg.querySelectorAll(`${SHAPE_SELECTOR}[id]`))
+      .filter(shape => shape.id !== 'CONTORNO' && !groupedShapes.has(shape));
+    return [...groups, ...namedShapes];
+  }
+
+  function inferTargetColor(target, styleColors) {
+    const shape = target.matches(SHAPE_SELECTOR) ? target : getPaintableShapes(target)[0];
+    if (!shape) return null;
+
+    for (const className of shape.classList) {
+      if (styleColors.has(className)) return styleColors.get(className);
+    }
+
+    const fill = shape.getAttribute('fill') || shape.style.fill;
+    return normalizeHex(fill);
+  }
+
+  function normalizeHex(value) {
+    if (!value || !value.startsWith('#')) return null;
+    const hex = value.trim();
+    if (hex.length === 4) {
+      return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`.toUpperCase();
+    }
+    return hex.slice(0, 7).toUpperCase();
+  }
+
+  function buildPalette(colors) {
+    palette.innerHTML = '';
+    colors.forEach((color, index) => {
+      const btn = document.createElement('button');
+      btn.className = `color-btn${index === 0 ? ' active' : ''}`;
+      btn.type = 'button';
+      btn.dataset.color = color;
+      btn.style.backgroundColor = color;
+      btn.setAttribute('aria-label', color);
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        setCurrentColor(color, btn);
+      });
+      palette.appendChild(btn);
+    });
+
+    const eraseBtn = document.createElement('button');
+    eraseBtn.className = 'color-btn erase-btn';
+    eraseBtn.type = 'button';
+    eraseBtn.dataset.color = '#FFFFFF';
+    eraseBtn.setAttribute('aria-label', 'Borrar');
+    eraseBtn.textContent = '×';
+    eraseBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      setCurrentColor('#FFFFFF', eraseBtn);
+    });
+    palette.appendChild(eraseBtn);
+
+    setCurrentColor(colors[0] || '#000000', palette.querySelector('.color-btn'));
+  }
+
+  function setCurrentColor(color, activeButton) {
+    currentColor = color;
+    palette.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+    if (activeButton) activeButton.classList.add('active');
+  }
+
   function getColorableTargetAtPoint(clientX, clientY) {
     const targets = document.elementsFromPoint
       ? document.elementsFromPoint(clientX, clientY)
       : [document.elementFromPoint(clientX, clientY)];
 
     for (const target of targets) {
-      if (!target || !svgWrapper.contains(target) || !(target instanceof Element)) {
-        continue;
-      }
+      if (!target || !svgWrapper.contains(target) || !(target instanceof Element)) continue;
+      const colorable = target.matches(SHAPE_SELECTOR) ? target : target.closest(SHAPE_SELECTOR);
+      if (!colorable || !svgWrapper.contains(colorable)) continue;
 
-      const svg = target.ownerSVGElement || (target.matches('svg') ? target : null);
-      if (svg?.classList.contains('group-coloring-svg')) {
-        const groupedTarget = getGroupedColoringTarget(svg, target);
+      const groupId = colorable.dataset.colorGroupTarget;
+      if (groupId) {
+        const groupedTarget = findSvgElementById(colorable.ownerSVGElement, groupId);
         if (groupedTarget) return groupedTarget;
-        continue;
       }
 
-      const colorableTarget = target.closest('.colorable');
-      if (colorableTarget) return colorableTarget;
+      if (colorable.classList.contains('colorable-group') || colorable.classList.contains('colorable')) {
+        return colorable;
+      }
     }
 
     return null;
   }
 
-  function getGroupedColoringTarget(svg, target) {
-    if (!target.matches(SHAPE_SELECTOR)) {
-      return null;
-    }
-
-    const group = target.closest('g[id]');
-    const groupName = normalizeColorGroupName(group?.id);
-    if (groupName) {
-      return group;
-    }
-
-    const shapeName = normalizeColorGroupName(target.id);
-    return shapeName ? target : null;
-  }
-
-  function getDrawingTarget(target) {
-    return target;
-  }
-
   function getDrawableParent(target) {
-    return target.classList?.contains('colorable-group')
-      ? target.ownerSVGElement
-      : target.parentNode instanceof SVGElement ? target.parentNode : target.ownerSVGElement;
+    return target.ownerSVGElement || target;
   }
 
   function clientPointToLocal(parent, clientX, clientY) {
@@ -263,7 +357,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const point = svg.createSVGPoint();
     point.x = clientX;
     point.y = clientY;
-
     const localPoint = point.matrixTransform(matrix.inverse());
     return { x: localPoint.x, y: localPoint.y };
   }
@@ -271,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function screenDistanceToLocal(parent, px) {
     const matrix = parent.getScreenCTM();
     if (!matrix) return px;
-
     const scale = Math.sqrt(Math.abs(matrix.a * matrix.d - matrix.b * matrix.c));
     return scale ? px / scale : px;
   }
@@ -283,7 +375,6 @@ document.addEventListener('DOMContentLoaded', () => {
       defs.classList.add('drawing-defs');
       svg.insertBefore(defs, svg.firstChild);
     }
-
     return defs;
   }
 
@@ -292,7 +383,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const clipId = `clip-${sourceId}-${++clipCounter}`;
     const clipPath = document.createElementNS(SVG_NS, 'clipPath');
-
     clipPath.id = clipId;
     clipPath.setAttribute('clipPathUnits', 'userSpaceOnUse');
 
@@ -304,10 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function appendClipShapes(clipPath, target) {
-    const shapes = target.matches(SHAPE_SELECTOR)
-      ? [target]
-      : getPaintableShapes(target);
-
+    const shapes = target.matches(SHAPE_SELECTOR) ? [target] : getPaintableShapes(target);
     shapes.forEach(shape => {
       const clipShape = shape.cloneNode(false);
       prepareClipShape(clipShape);
@@ -316,29 +403,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function prepareClipShape(root) {
-    const elements = [root, ...Array.from(root.querySelectorAll('*'))];
-    elements.forEach(el => {
-      el.removeAttribute('id');
-      el.removeAttribute('class');
-      el.removeAttribute('style');
-      el.removeAttribute('pointer-events');
-      if (el.matches?.(SHAPE_SELECTOR)) {
-        el.setAttribute('fill', '#000000');
-        el.setAttribute('stroke', 'none');
-      }
-    });
+    root.removeAttribute('id');
+    root.removeAttribute('class');
+    root.removeAttribute('style');
+    root.removeAttribute('pointer-events');
+    root.setAttribute('fill', '#000000');
+    root.setAttribute('stroke', 'none');
   }
 
-  function ensureDrawingLayer(parent) {
-    let layer = Array.from(parent.children).find(child => child.classList?.contains('drawing-layer'));
-    if (!layer) {
-      layer = document.createElementNS(SVG_NS, 'g');
-      layer.classList.add('drawing-layer');
-      layer.setAttribute('pointer-events', 'none');
-      parent.appendChild(layer);
-    }
+  function getPaintableShapes(target) {
+    const shapes = target.matches(SHAPE_SELECTOR)
+      ? [target]
+      : Array.from(target.querySelectorAll(SHAPE_SELECTOR));
 
-    return layer;
+    return shapes.filter(shape => (
+      shape.id !== 'CONTORNO' &&
+      !shape.closest('.drawing-layer') &&
+      !shape.classList.contains('draw-stroke')
+    ));
   }
 
   function createStrokePath(parent, clipId, color) {
@@ -358,10 +440,21 @@ document.addEventListener('DOMContentLoaded', () => {
     return pathEl;
   }
 
+  function ensureDrawingLayer(parent) {
+    const svg = parent.ownerSVGElement || parent;
+    let layer = Array.from(svg.children).find(child => child.classList?.contains('drawing-layer'));
+    if (!layer) {
+      layer = document.createElementNS(SVG_NS, 'g');
+      layer.classList.add('drawing-layer');
+      layer.setAttribute('pointer-events', 'none');
+      svg.appendChild(layer);
+    }
+    return layer;
+  }
+
   function addPointToStroke(stroke, point) {
     const lastPoint = stroke.points[stroke.points.length - 1];
     if (lastPoint && distanceBetween(lastPoint, point) < stroke.minDistance) return;
-
     stroke.points.push(point);
     renderStroke(stroke);
   }
@@ -381,7 +474,6 @@ document.addEventListener('DOMContentLoaded', () => {
     for (let i = 1; i < points.length; i += 1) {
       commands.push(`L ${formatNumber(points[i].x)} ${formatNumber(points[i].y)}`);
     }
-
     return commands.join(' ');
   }
 
@@ -398,200 +490,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function findSvgElementById(svg, id) {
-    if (!id) return null;
-
-    if (window.CSS?.escape) {
-      return svg.querySelector(`#${CSS.escape(id)}`);
-    }
-
+    if (!svg || !id) return null;
+    if (window.CSS?.escape) return svg.querySelector(`#${CSS.escape(id)}`);
     return Array.from(svg.querySelectorAll('[id]')).find(el => el.id === id) || null;
   }
 
-  function normalizeColorGroupName(id) {
-    const normalizedId = (id || '').toUpperCase();
-    return COLORABLE_GROUP_IDS.find(groupId => (
-      normalizedId === groupId || normalizedId.startsWith(`${groupId}_`)
-    )) || null;
-  }
-
-  function isInsideColorableGroup(el) {
-    return Boolean(el.parentElement?.closest?.('g.colorable-group'));
-  }
-
-  function markColorableTarget(el, groupName) {
-    if (!el.id) {
-      el.id = groupName || `grupo-color-${Date.now()}`;
-    }
-
-    if (el.matches(SHAPE_SELECTOR)) {
-      el.classList.add('colorable');
-    }
-    el.classList.add('colorable-group');
-    el.dataset.colorGroup = groupName || el.id;
-  }
-
-  function markGroupShapes(group, groupName) {
-    getPaintableShapes(group).forEach(el => {
-      el.classList.add('colorable');
-      el.dataset.colorGroupTarget = group.id;
-      el.dataset.colorGroup = groupName || group.id;
-    });
-  }
-
-  function getPaintableShapes(target) {
-    const shapes = target.matches(SHAPE_SELECTOR)
-      ? [target]
-      : Array.from(target.querySelectorAll(SHAPE_SELECTOR));
-
-    return shapes.filter(el => (
-      el.id !== 'CONTORNO' &&
-      !el.closest('.drawing-layer') &&
-      !el.classList.contains('draw-stroke')
-    ));
-  }
-
-  function paintColorTarget(target, color) {
-    getPaintableShapes(target).forEach(el => {
-      el.style.fill = color;
-      el.classList.remove('crayon-anim');
-      void el.getBoundingClientRect();
-      el.classList.add('crayon-anim');
-    });
-  }
-
-  function setupColoringPaths(svg) {
-    const contour = findSvgElementById(svg, 'CONTORNO');
-    if (contour) {
-      contour.classList.add('locked-contour');
-      contour.style.fill = '#000000';
-      contour.style.stroke = 'none';
-      contour.style.pointerEvents = 'none';
-    }
-
-    const namedGroups = Array.from(svg.querySelectorAll('g[id]'))
-      .map(el => ({ el, groupName: normalizeColorGroupName(el.id) }))
-      .filter(item => item.groupName);
-
-    const namedShapes = Array.from(svg.querySelectorAll(`${SHAPE_SELECTOR}[id]`))
-      .map(el => ({ el, groupName: normalizeColorGroupName(el.id) }))
-      .filter(item => item.groupName && !isInsideColorableGroup(item.el));
-
-    if (namedGroups.length || namedShapes.length) {
-      svg.classList.add('group-coloring-svg');
-      namedGroups.forEach(({ el, groupName }) => {
-        markColorableTarget(el, groupName);
-        markGroupShapes(el, groupName);
-      });
-      namedShapes.forEach(({ el, groupName }) => markColorableTarget(el, groupName));
-      return;
-    }
-
-    const colorableElements = svg.querySelectorAll(SHAPE_SELECTOR);
-    colorableElements.forEach((el, index) => {
-      if (el.id === 'CONTORNO') return;
-      if (!el.id) {
-        el.id = `capa-${index + 1}`;
+  function startTimer() {
+    stopTimer();
+    timeLeft = PAINT_SECONDS;
+    updateTimer();
+    timerId = window.setInterval(() => {
+      timeLeft -= 1;
+      updateTimer();
+      if (timeLeft <= 0) {
+        returnToSelect(true);
       }
-      el.classList.add('colorable');
-    });
+    }, 1000);
   }
 
-  // ========================
-  // 5. PALETTE SELECTION
-  // ========================
-  paletteButtons.forEach(btn => {
-    btn.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-
-      // Update active button styling
-      paletteButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-
-      // Update current color
-      currentColor = btn.getAttribute('data-color');
-    });
-  });
-
-  // ========================
-  // 6. CHARACTER SELECTION
-  // ========================
-  charButtons.forEach(btn => {
-    btn.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-
-      const svgFile = btn.getAttribute('data-svg');
-      if (!svgFile || svgFile === currentSVG) return;
-
-      // Update active character button
-      charButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-
-      // Load new SVG
-      loadSVG(svgFile);
-    });
-  });
-
-  // ========================
-  // 7. INIT: Load default SVG
-  // ========================
-  loadSVG(currentSVG);
-
-  // ========================
-  // 8. DRAG AND DROP
-  // ========================
-  const dragOverlay = document.getElementById('drag-overlay');
-
-  window.addEventListener('dragenter', (e) => {
-    e.preventDefault();
-    dragOverlay.classList.add('active');
-  });
-
-  window.addEventListener('dragover', (e) => {
-    e.preventDefault(); // Necesario para permitir el drop
-  });
-
-  window.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    // Prevenir parpadeo cuando el cursor pasa por elementos internos
-    if (e.relatedTarget === null) {
-      dragOverlay.classList.remove('active');
+  function stopTimer() {
+    if (timerId) {
+      window.clearInterval(timerId);
+      timerId = null;
     }
-  });
+  }
 
-  window.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dragOverlay.classList.remove('active');
-
-    const file = e.dataTransfer.files[0];
-    if (file && (file.type === 'image/svg+xml' || file.name.endsWith('.svg'))) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const svgText = event.target.result;
-        
-        // Deseleccionar botones de personajes porque ahora usamos uno custom
-        charButtons.forEach(b => b.classList.remove('active'));
-        activeStroke = null;
-        currentSVG = 'custom_dropped_file';
-
-        // Inyectar y preparar el SVG
-        svgWrapper.innerHTML = svgText;
-        const svg = svgWrapper.querySelector('svg');
-        if (svg) {
-          svg.removeAttribute('width');
-          svg.removeAttribute('height');
-          svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-          setupColoringPaths(svg);
-
-          publishEvent('cambiar_personaje', {
-            tabletId,
-            svgFile: currentSVG,
-            customSvgContent: svgText
-          });
-        } else {
-          svgWrapper.innerHTML = '<div class="loading-msg">El archivo no contiene un SVG válido.</div>';
-        }
-      };
-      reader.readAsText(file);
-    }
-  });
+  function updateTimer() {
+    const minutes = Math.floor(Math.max(timeLeft, 0) / 60).toString().padStart(2, '0');
+    const seconds = (Math.max(timeLeft, 0) % 60).toString().padStart(2, '0');
+    timerEl.textContent = `${minutes}:${seconds}`;
+  }
 });
