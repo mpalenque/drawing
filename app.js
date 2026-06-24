@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let strokeCounter = 0;
   let timerId = null;
   let timeLeft = PAINT_SECONDS;
-  let viewportTransform = { scale: 1, x: 0, y: 0 };
+  let baseViewBox = null;
+  let viewportViewBox = null;
   let zoomGesture = null;
   const activePointers = new Map();
 
@@ -120,9 +121,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const svg = svgWrapper.querySelector('svg');
         if (!svg) return;
 
+        // Guardamos el viewBox original para hacer zoom vectorial, sin escalar por CSS.
+        baseViewBox = parseViewBox(svg);
+        viewportViewBox = { ...baseViewBox };
         svg.removeAttribute('width');
         svg.removeAttribute('height');
         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        svg.setAttribute('shape-rendering', 'geometricPrecision');
+        svg.setAttribute('text-rendering', 'geometricPrecision');
         applyViewportTransform();
 
         const setup = setupColoringSvg(svg);
@@ -282,18 +288,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function startZoomGesture() {
+    const svg = svgWrapper.querySelector('svg');
     const points = getFirstTwoPointers();
-    if (!points) return;
+    if (!svg || !points) return;
+
+    const center = midpoint(points[0], points[1]);
+    const anchor = clientPointToLocal(svg, center.x, center.y);
+    if (!anchor) return;
 
     zoomGesture = {
       startDistance: distanceBetween(points[0], points[1]),
-      startCenter: toWrapperPoint(midpoint(points[0], points[1])),
-      startTransform: { ...viewportTransform }
+      startAnchor: anchor,
+      startScale: getCurrentViewportScale()
     };
   }
 
   function updateZoomGesture() {
     if (!zoomGesture) return;
+    const svg = svgWrapper.querySelector('svg');
+    if (!svg) return;
 
     const points = getFirstTwoPointers();
     if (!points) return;
@@ -301,50 +314,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const distance = distanceBetween(points[0], points[1]);
     if (!distance || !zoomGesture.startDistance) return;
 
-    const center = toWrapperPoint(midpoint(points[0], points[1]));
+    const center = midpoint(points[0], points[1]);
     const nextScale = clamp(
-      zoomGesture.startTransform.scale * (distance / zoomGesture.startDistance),
+      zoomGesture.startScale * (distance / zoomGesture.startDistance),
       1,
       4
     );
-    const scaleRatio = nextScale / zoomGesture.startTransform.scale;
 
-    viewportTransform = {
-      scale: nextScale,
-      x: center.x - (zoomGesture.startCenter.x - zoomGesture.startTransform.x) * scaleRatio,
-      y: center.y - (zoomGesture.startCenter.y - zoomGesture.startTransform.y) * scaleRatio
-    };
-
-    applyViewportTransform();
+    zoomToAnchor(
+      svg,
+      zoomGesture.startAnchor,
+      toWrapperPoint(center),
+      nextScale
+    );
   }
 
   function zoomAroundPoint(factor, clientX, clientY) {
     const center = toWrapperPoint({ x: clientX, y: clientY });
-    const nextScale = clamp(viewportTransform.scale * factor, 1, 4);
-    const scaleRatio = nextScale / viewportTransform.scale;
+    const svg = svgWrapper.querySelector('svg');
+    if (!svg) return;
 
-    viewportTransform = {
-      scale: nextScale,
-      x: center.x - (center.x - viewportTransform.x) * scaleRatio,
-      y: center.y - (center.y - viewportTransform.y) * scaleRatio
-    };
+    const anchor = clientPointToLocal(svg, clientX, clientY);
+    if (!anchor) return;
 
-    applyViewportTransform();
+    const nextScale = clamp(getCurrentViewportScale() * factor, 1, 4);
+    zoomToAnchor(svg, anchor, center, nextScale);
   }
 
   function resetViewportTransform() {
-    viewportTransform = { scale: 1, x: 0, y: 0 };
+    viewportViewBox = baseViewBox ? { ...baseViewBox } : null;
   }
 
   function applyViewportTransform() {
     const svg = svgWrapper.querySelector('svg');
-    if (!svg) return;
+    if (!svg || !viewportViewBox) return;
 
-    if (viewportTransform.scale <= 1.001) {
-      viewportTransform = { scale: 1, x: 0, y: 0 };
+    if (getCurrentViewportScale() <= 1.001 && baseViewBox) {
+      viewportViewBox = { ...baseViewBox };
     }
 
-    svg.style.transform = `translate(${formatNumber(viewportTransform.x)}px, ${formatNumber(viewportTransform.y)}px) scale(${formatNumber(viewportTransform.scale)})`;
+    svg.style.transform = 'none';
+    svg.style.willChange = 'auto';
+    svg.setAttribute('viewBox', serializeViewBox(viewportViewBox));
+  }
+
+  function zoomToAnchor(svg, anchor, wrapperPoint, nextScale) {
+    if (!baseViewBox || !viewportViewBox) return;
+
+    if (nextScale <= 1.001) {
+      resetViewportTransform();
+      applyViewportTransform();
+      return;
+    }
+
+    // Mantener el SVG nítido: ajustamos el viewBox en lugar de aplicar scale() al nodo.
+    const nextViewBox = {
+      width: baseViewBox.width / nextScale,
+      height: baseViewBox.height / nextScale
+    };
+    const metrics = getViewportMetrics(nextViewBox);
+
+    viewportViewBox = {
+      x: anchor.x - (wrapperPoint.x - metrics.offsetX) / metrics.scale,
+      y: anchor.y - (wrapperPoint.y - metrics.offsetY) / metrics.scale,
+      width: nextViewBox.width,
+      height: nextViewBox.height
+    };
+
+    applyViewportTransform();
   }
 
   function getFirstTwoPointers() {
@@ -370,6 +407,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function getCurrentViewportScale() {
+    if (!baseViewBox || !viewportViewBox || !viewportViewBox.width) return 1;
+    return baseViewBox.width / viewportViewBox.width;
+  }
+
+  function getViewportMetrics(viewBox) {
+    const rect = svgWrapper.getBoundingClientRect();
+    const scale = Math.min(rect.width / viewBox.width, rect.height / viewBox.height);
+    return {
+      scale,
+      offsetX: (rect.width - viewBox.width * scale) / 2,
+      offsetY: (rect.height - viewBox.height * scale) / 2
+    };
+  }
+
+  function serializeViewBox(viewBox) {
+    return [
+      formatViewBoxNumber(viewBox.x),
+      formatViewBoxNumber(viewBox.y),
+      formatViewBoxNumber(viewBox.width),
+      formatViewBoxNumber(viewBox.height)
+    ].join(' ');
+  }
+
+  function formatViewBoxNumber(value) {
+    return Number(value.toFixed(4));
+  }
+
+  function parseViewBox(svg) {
+    const raw = svg.getAttribute('viewBox');
+    if (raw) {
+      const values = raw.trim().split(/[\s,]+/).map(Number);
+      if (values.length === 4 && values.every(Number.isFinite)) {
+        return {
+          x: values[0],
+          y: values[1],
+          width: values[2],
+          height: values[3]
+        };
+      }
+    }
+
+    const width = Number.parseFloat(svg.getAttribute('width')) || 100;
+    const height = Number.parseFloat(svg.getAttribute('height')) || 100;
+    return { x: 0, y: 0, width, height };
   }
 
   function setupColoringSvg(svg) {
