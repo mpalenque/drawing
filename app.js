@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let strokeCounter = 0;
   let timerId = null;
   let timeLeft = PAINT_SECONDS;
+  let viewportTransform = { scale: 1, x: 0, y: 0 };
+  let zoomGesture = null;
+  const activePointers = new Map();
 
   const urlParams = new URLSearchParams(window.location.search);
   const tabletId = Number.parseInt(urlParams.get('tabletId'), 10) || 1;
@@ -56,10 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  window.addEventListener('pointerup', finishDrawing);
-  window.addEventListener('pointercancel', finishDrawing);
-  svgWrapper.addEventListener('pointerdown', startDrawing);
-  svgWrapper.addEventListener('pointermove', continueDrawing);
+  window.addEventListener('pointerup', handlePointerEnd);
+  window.addEventListener('pointercancel', handlePointerEnd);
+  svgWrapper.addEventListener('pointerdown', handleCanvasPointerDown);
+  svgWrapper.addEventListener('pointermove', handleCanvasPointerMove);
+  svgWrapper.addEventListener('wheel', handleCanvasWheel, { passive: false });
 
   choiceButtons.forEach(btn => {
     btn.addEventListener('pointerdown', (e) => {
@@ -84,6 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
     activeStroke = null;
     stopTimer();
     currentSVG = null;
+    activePointers.clear();
+    zoomGesture = null;
+    resetViewportTransform();
     svgWrapper.innerHTML = '<div class="loading-msg">Cargando...</div>';
     palette.innerHTML = '';
     paintScreen.classList.remove('active');
@@ -97,6 +104,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadSVG(filename) {
     activeStroke = null;
     currentSVG = filename;
+    activePointers.clear();
+    zoomGesture = null;
+    resetViewportTransform();
     svgWrapper.innerHTML = '<div class="loading-msg">Cargando...</div>';
 
     fetch(filename)
@@ -113,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         svg.removeAttribute('width');
         svg.removeAttribute('height');
         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        applyViewportTransform();
 
         const setup = setupColoringSvg(svg);
         buildPalette(setup.paletteColors);
@@ -124,6 +135,68 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error loading SVG:', err);
         svgWrapper.innerHTML = '<div class="loading-msg">Error al cargar el dibujo.</div>';
       });
+  }
+
+  function handleCanvasPointerDown(e) {
+    const svg = svgWrapper.querySelector('svg');
+    if (!svg) return;
+
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    try {
+      svgWrapper.setPointerCapture(e.pointerId);
+    } catch (err) {
+      // Some webviews do not allow pointer capture; drawing and zoom still work.
+    }
+
+    if (e.pointerType === 'touch' && activePointers.size >= 2) {
+      e.preventDefault();
+      e.stopPropagation();
+      cancelActiveStroke();
+      startZoomGesture();
+      return;
+    }
+
+    if (activePointers.size > 1) return;
+    startDrawing(e);
+  }
+
+  function handleCanvasPointerMove(e) {
+    if (activePointers.has(e.pointerId)) {
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    if (zoomGesture && activePointers.size >= 2) {
+      e.preventDefault();
+      e.stopPropagation();
+      updateZoomGesture();
+      return;
+    }
+
+    continueDrawing(e);
+  }
+
+  function handlePointerEnd(e) {
+    const wasTracked = activePointers.delete(e.pointerId);
+
+    if (zoomGesture) {
+      e.preventDefault();
+      e.stopPropagation();
+      zoomGesture = null;
+      if (wasTracked && activePointers.size === 1) cancelActiveStroke();
+      return;
+    }
+
+    finishDrawing(e);
+  }
+
+  function handleCanvasWheel(e) {
+    const svg = svgWrapper.querySelector('svg');
+    if (!svg) return;
+
+    e.preventDefault();
+    const factor = Math.exp(-e.deltaY * 0.0015);
+    zoomAroundPoint(factor, e.clientX, e.clientY);
   }
 
   function startDrawing(e) {
@@ -199,6 +272,104 @@ document.addEventListener('DOMContentLoaded', () => {
       brushSizePx: BRUSH_SIZE_PX,
       points: compactPoints(finishedStroke.points)
     });
+  }
+
+  function cancelActiveStroke() {
+    if (!activeStroke) return;
+
+    activeStroke.pathEl.remove();
+    activeStroke = null;
+  }
+
+  function startZoomGesture() {
+    const points = getFirstTwoPointers();
+    if (!points) return;
+
+    zoomGesture = {
+      startDistance: distanceBetween(points[0], points[1]),
+      startCenter: toWrapperPoint(midpoint(points[0], points[1])),
+      startTransform: { ...viewportTransform }
+    };
+  }
+
+  function updateZoomGesture() {
+    if (!zoomGesture) return;
+
+    const points = getFirstTwoPointers();
+    if (!points) return;
+
+    const distance = distanceBetween(points[0], points[1]);
+    if (!distance || !zoomGesture.startDistance) return;
+
+    const center = toWrapperPoint(midpoint(points[0], points[1]));
+    const nextScale = clamp(
+      zoomGesture.startTransform.scale * (distance / zoomGesture.startDistance),
+      1,
+      4
+    );
+    const scaleRatio = nextScale / zoomGesture.startTransform.scale;
+
+    viewportTransform = {
+      scale: nextScale,
+      x: center.x - (zoomGesture.startCenter.x - zoomGesture.startTransform.x) * scaleRatio,
+      y: center.y - (zoomGesture.startCenter.y - zoomGesture.startTransform.y) * scaleRatio
+    };
+
+    applyViewportTransform();
+  }
+
+  function zoomAroundPoint(factor, clientX, clientY) {
+    const center = toWrapperPoint({ x: clientX, y: clientY });
+    const nextScale = clamp(viewportTransform.scale * factor, 1, 4);
+    const scaleRatio = nextScale / viewportTransform.scale;
+
+    viewportTransform = {
+      scale: nextScale,
+      x: center.x - (center.x - viewportTransform.x) * scaleRatio,
+      y: center.y - (center.y - viewportTransform.y) * scaleRatio
+    };
+
+    applyViewportTransform();
+  }
+
+  function resetViewportTransform() {
+    viewportTransform = { scale: 1, x: 0, y: 0 };
+  }
+
+  function applyViewportTransform() {
+    const svg = svgWrapper.querySelector('svg');
+    if (!svg) return;
+
+    if (viewportTransform.scale <= 1.001) {
+      viewportTransform = { scale: 1, x: 0, y: 0 };
+    }
+
+    svg.style.transform = `translate(${formatNumber(viewportTransform.x)}px, ${formatNumber(viewportTransform.y)}px) scale(${formatNumber(viewportTransform.scale)})`;
+  }
+
+  function getFirstTwoPointers() {
+    const points = Array.from(activePointers.values());
+    if (points.length < 2) return null;
+    return [points[0], points[1]];
+  }
+
+  function midpoint(a, b) {
+    return {
+      x: (a.x + b.x) / 2,
+      y: (a.y + b.y) / 2
+    };
+  }
+
+  function toWrapperPoint(point) {
+    const rect = svgWrapper.getBoundingClientRect();
+    return {
+      x: point.x - rect.left,
+      y: point.y - rect.top
+    };
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
   }
 
   function setupColoringSvg(svg) {

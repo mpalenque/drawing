@@ -251,6 +251,8 @@ h1 {
   max-height: 100%;
   display: block;
   touch-action: none;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 
 /* Base coloring-page look for the untouched SVG shapes */
