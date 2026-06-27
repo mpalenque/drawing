@@ -1,0 +1,8 @@
+{
+  "appId": "com.toystory.colorear",
+  "appName": "Toy Story A Colorear",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

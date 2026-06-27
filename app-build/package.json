@@ -1,0 +1,11 @@
+{
+  "name": "toystory-colorear",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Toy Story - A Colorear (offline tablet app)",
+  "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/cli": "^6.2.1",
+    "@capacitor/core": "^6.2.1"
+  }
+}

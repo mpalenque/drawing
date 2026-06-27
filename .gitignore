@@ -1,0 +1,6 @@
+# macOS
+.DS_Store
+
+# Dependencias y artefactos regenerables del proyecto del APK (Capacitor/Android)
+app-build/node_modules/
+app-build/android/

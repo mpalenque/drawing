@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Toy Story Drawing App - Colorea personajes en tu tablet.">
+  <title>Toy Story - A Colorear</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <section class="screen select-screen active" id="select-screen">
+    <header class="select-header">
+      <img class="brand-logo" src="Toy_Story_5_logo.svg" alt="Toy Story 5">
+      <div class="cta-block">
+        <div class="cta-pill">¡A colorear!</div>
+        <p class="cta-hint">Elegí tu personaje y pintalo</p>
+      </div>
+    </header>
+
+    <main class="choice-grid" id="character-choices">
+      <button class="choice-btn" data-svg="woody_coloring.svg" aria-label="Woody">
+        <span class="choice-art"><img src="Woody.jpg" alt=""></span>
+      </button>
+      <button class="choice-btn" data-svg="buzz_coloring.svg" aria-label="Buzz Lightyear">
+        <span class="choice-art"><img src="Buzz.jpg" alt=""></span>
+      </button>
+      <button class="choice-btn" data-svg="jessie_coloring.svg" aria-label="Jessie y Bullseye">
+        <span class="choice-art"><img src="Jessie.jpg" alt=""></span>
+      </button>
+      <button class="choice-btn" data-svg="frog_coloring.svg" aria-label="Rana">
+        <span class="choice-art"><img src="Lilypad.jpg" alt=""></span>
+      </button>
+    </main>
+  </section>
+
+  <section class="screen paint-screen" id="paint-screen">
+    <header class="paint-header">
+      <button class="back-btn" id="back-to-select" aria-label="Volver">‹</button>
+      <div class="timer-pill" id="timer">03:00</div>
+      <img class="brand-logo-mini" src="Toy_Story_5_logo.svg" alt="Toy Story 5">
+    </header>
+
+    <main class="canvas-container">
+      <aside class="reference-bubble" id="reference-bubble" aria-hidden="true">
+        <img id="reference-image" alt="">
+      </aside>
+
+      <div class="canvas-card" id="canvas-card">
+        <div id="svg-wrapper">
+          <div class="loading-msg">Cargando...</div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="controls-bar">
+      <div class="paint-cta">¡A colorear!</div>
+      <div class="palette-dock" id="palette"></div>
+    </footer>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
