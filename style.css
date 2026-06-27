@@ -1,15 +1,19 @@
 /* ===================================
    Google Fonts
    =================================== */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Outfit:wght@400;600;800;900&display=swap');
 
 /* ===================================
    CSS Variables
    =================================== */
 :root {
   --font: 'Outfit', -apple-system, sans-serif;
+  --font-display: 'Luckiest Guy', 'Outfit', cursive;
   --bg: #82aef8;
   --ink: #15233f;
+  --ts-red: #ef3e42;
+  --ts-blue: #0060a9;
+  --ts-yellow: #ffdd00;
   --glass-bg: rgba(255, 255, 255, 0.55);
   --glass-border: rgba(255, 255, 255, 0.75);
   --shadow-deep: none;
@@ -104,6 +108,53 @@ header {
   pointer-events: none;
 }
 
+/* ===================================
+   Call to action "¡A colorear!"
+   =================================== */
+.cta-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  animation: fadeUp 0.6s ease;
+}
+
+.cta-pill,
+.paint-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ts-red);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  text-align: center;
+}
+
+.cta-pill {
+  padding: 12px 30px;
+  font-size: clamp(1.2rem, 4.2vw, 1.9rem);
+  animation: ctaBounce 2.4s ease-in-out infinite;
+}
+
+.cta-hint {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: clamp(0.82rem, 2.6vw, 1.02rem);
+  opacity: 0.8;
+}
+
+.paint-cta {
+  padding: 7px 22px;
+  font-size: clamp(0.9rem, 3vw, 1.2rem);
+  border-width: 2px;
+  max-width: 94vw;
+}
+
 .select-header h1 {
   font-size: clamp(1.35rem, 4vw, 2.1rem);
 }
@@ -163,7 +214,7 @@ h1 {
 
 .choice-btn {
   /* Sized by the smaller of available width/height so the 2x2 grid always fits */
-  width: min(42vw, 32vh, 260px);
+  width: min(42vw, 30vh, 250px);
   aspect-ratio: 1;
   border-radius: 50%;
   border: 6px solid #ffffff;
@@ -226,8 +277,10 @@ h1 {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-deep);
-  color: var(--ink);
-  font-weight: 900;
+  color: var(--ts-blue);
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 1px;
   font-size: clamp(1.25rem, 4vw, 2rem);
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -350,7 +403,8 @@ h1 {
   fill: none !important;
   stroke-linecap: round;
   stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
+  /* El trazo se mide en unidades del dibujo para que escale con el zoom. */
+  vector-effect: none;
   transition: none;
 }
 
@@ -496,8 +550,18 @@ h1 {
   }
 
   .choice-btn {
-    width: min(34vw, 40vh, 200px);
+    width: min(30vw, 40vh, 190px);
     border-width: 4px;
+  }
+
+  .cta-pill {
+    padding: 6px 18px;
+    font-size: clamp(0.95rem, 4vw, 1.2rem);
+  }
+
+  .cta-hint,
+  .paint-cta {
+    display: none;
   }
 
   .palette-dock {
@@ -537,6 +601,11 @@ h1 {
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.93); }
   to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ctaBounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
 }
 
 @keyframes pulse {

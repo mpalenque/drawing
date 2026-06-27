@@ -129,7 +129,8 @@ body {
   fill: none !important;
   stroke-linecap: round;
   stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
+  /* Ancho en unidades del dibujo (recibido de la tablet) para escalar con el SVG. */
+  vector-effect: none;
   transition: none;
 }
 

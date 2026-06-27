@@ -237,7 +237,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!point) return;
 
     const clipId = ensureClipPathForTarget(svg, target);
-    const pathEl = createStrokePath(parent, clipId, currentColor);
+    // El ancho del pincel se mide en unidades del dibujo (no en pixeles de pantalla),
+    // asi el trazo escala con el zoom y no aparecen huecos al acercar.
+    const brushWidth = screenDistanceToLocal(parent, BRUSH_SIZE_PX);
+    const pathEl = createStrokePath(parent, clipId, currentColor, brushWidth);
 
     activeStroke = {
       pointerId: e.pointerId,
@@ -246,6 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
       target,
       pathEl,
       color: currentColor,
+      brushWidth,
       points: [point],
       minDistance: screenDistanceToLocal(parent, MIN_POINT_DISTANCE_PX)
     };
@@ -292,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
       svgFile: currentSVG,
       elementId: finishedStroke.target.id,
       color: finishedStroke.color,
-      brushSizePx: BRUSH_SIZE_PX,
+      brushSizePx: finishedStroke.brushWidth,
       points: compactPoints(finishedStroke.points)
     });
   }
@@ -695,7 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ));
   }
 
-  function createStrokePath(parent, clipId, color) {
+  function createStrokePath(parent, clipId, color, brushWidth = BRUSH_SIZE_PX) {
     const pathEl = document.createElementNS(SVG_NS, 'path');
     pathEl.id = `trazo-${tabletId}-${Date.now()}-${++strokeCounter}`;
     pathEl.classList.add('draw-stroke');
@@ -703,10 +707,11 @@ document.addEventListener('DOMContentLoaded', () => {
     pathEl.setAttribute('pointer-events', 'none');
     pathEl.style.fill = 'none';
     pathEl.style.stroke = color;
-    pathEl.style.strokeWidth = `${BRUSH_SIZE_PX}`;
+    pathEl.style.strokeWidth = `${brushWidth}`;
     pathEl.style.strokeLinecap = 'round';
     pathEl.style.strokeLinejoin = 'round';
-    pathEl.style.vectorEffect = 'non-scaling-stroke';
+    // Trazo en unidades del dibujo => escala con el zoom (sin non-scaling-stroke).
+    pathEl.style.vectorEffect = 'none';
 
     ensureDrawingLayer(parent).appendChild(pathEl);
     return pathEl;

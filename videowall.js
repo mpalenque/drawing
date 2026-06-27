@@ -194,7 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
     pathEl.style.strokeWidth = `${brushSizePx || BRUSH_SIZE_PX}`;
     pathEl.style.strokeLinecap = 'round';
     pathEl.style.strokeLinejoin = 'round';
-    pathEl.style.vectorEffect = 'non-scaling-stroke';
+    // El ancho llega en unidades del dibujo, asi que escala con el SVG (sin non-scaling).
+    pathEl.style.vectorEffect = 'none';
     ensureDrawingLayer(parent).appendChild(pathEl);
     return pathEl;
   }
