@@ -8,12 +8,13 @@
    =================================== */
 :root {
   --font: 'Outfit', -apple-system, sans-serif;
-  --bg: radial-gradient(ellipse at top, #1b1d2e 0%, #0a0a10 100%);
-  --glass-bg: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --shadow-deep: 0 20px 60px rgba(0, 0, 0, 0.6);
-  --canvas-bg: #fafafa;
-  --active-ring: 0 0 0 4px #ffffff, 0 0 20px rgba(255,255,255,0.4);
+  --bg: #82aef8;
+  --ink: #15233f;
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --shadow-deep: none;
+  --canvas-bg: #ffffff;
+  --active-ring: 0 0 0 4px #ffffff;
 }
 
 /* ===================================
@@ -70,12 +71,37 @@ header {
 }
 
 .select-header {
-  padding-top: clamp(18px, 5vh, 42px);
+  flex-direction: column;
+  gap: clamp(10px, 2vh, 18px);
+  padding-top: clamp(14px, 3.5vh, 32px);
 }
 
 .select-header .header-glass {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(255, 255, 255, 0.85);
+}
+
+/* Toy Story 5 logo - selection screen */
+.brand-logo {
+  width: auto;
+  height: clamp(64px, 14vh, 150px);
+  max-width: 80vw;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+  animation: fadeDown 0.6s ease;
+  pointer-events: none;
+}
+
+/* Toy Story 5 logo - coloring screen (small badge, top-right) */
+.brand-logo-mini {
+  justify-self: end;
+  align-self: center;
+  height: clamp(42px, 7vh, 58px);
+  width: auto;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
 }
 
 .select-header h1 {
@@ -109,9 +135,8 @@ header {
 h1 {
   font-size: clamp(1rem, 3.5vw, 1.4rem);
   font-weight: 800;
-  color: #fff;
+  color: var(--ink);
   letter-spacing: 0.5px;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 .dot {
@@ -126,24 +151,27 @@ h1 {
 
 .choice-grid {
   flex: 1;
+  min-height: 0;
   width: min(980px, 100%);
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   place-items: center;
-  gap: clamp(18px, 4vw, 34px);
-  padding: clamp(18px, 4vw, 38px);
+  gap: clamp(12px, 3vw, 30px);
+  padding: clamp(10px, 3vw, 30px);
 }
 
 .choice-btn {
-  width: min(38vw, 280px);
+  /* Sized by the smaller of available width/height so the 2x2 grid always fits */
+  width: min(42vw, 32vh, 260px);
   aspect-ratio: 1;
   border-radius: 50%;
-  border: 5px solid rgba(255,255,255,0.16);
-  background: rgba(255,255,255,0.08);
-  box-shadow: var(--shadow-deep), inset 0 1px 0 rgba(255,255,255,0.28);
+  border: 6px solid #ffffff;
+  background: #ffffff;
+  box-shadow: none;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: clamp(8px, 1.6vw, 18px);
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), border-color 0.2s, background 0.2s;
@@ -152,8 +180,8 @@ h1 {
 .choice-btn:hover,
 .choice-btn:active {
   transform: scale(1.06);
-  border-color: #ffffff;
-  background: rgba(255,255,255,0.14);
+  border-color: #0060a9;
+  background: #ffffff;
 }
 
 .choice-art {
@@ -167,9 +195,9 @@ h1 {
 }
 
 .choice-art img {
-  width: 92%;
-  height: 92%;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
   pointer-events: none;
 }
@@ -178,9 +206,9 @@ h1 {
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.2);
-  background: rgba(255,255,255,0.08);
-  color: #ffffff;
+  border: 2px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--ink);
   font-size: 2rem;
   line-height: 1;
   font-weight: 800;
@@ -198,7 +226,7 @@ h1 {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-deep);
-  color: #ffffff;
+  color: var(--ink);
   font-weight: 900;
   font-size: clamp(1.25rem, 4vw, 2rem);
   font-variant-numeric: tabular-nums;
@@ -214,15 +242,58 @@ h1 {
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
   padding: 8px 16px 10px;
   touch-action: none;
   min-height: 0; /* allow flex shrink */
 }
 
+.reference-bubble {
+  position: absolute;
+  left: max(14px, env(safe-area-inset-left, 0px));
+  top: 18px;
+  width: clamp(64px, 10vw, 92px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  padding: 6px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(245,245,245,0.72));
+  border: 1px solid rgba(255,255,255,0.78);
+  box-shadow: none;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: translateX(-8px) scale(0.92);
+  pointer-events: none;
+  z-index: 8;
+  transition: opacity 0.22s ease, transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.reference-bubble.is-visible {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+.reference-bubble::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  border: 1px solid rgba(255,255,255,0.22);
+}
+
+.reference-bubble img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: contain;
+  background: #fafafa;
+  display: block;
+}
+
 .canvas-card {
   background: var(--canvas-bg);
   border-radius: 24px;
-  box-shadow: var(--shadow-deep), inset 0 1px 0 rgba(255,255,255,0.8);
+  box-shadow: none;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -361,11 +432,11 @@ h1 {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  border: 3px solid rgba(255,255,255,0.2);
+  border: 3px solid rgba(0,0,0,0.15);
   cursor: pointer;
   position: relative;
   transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  box-shadow: none;
   flex-shrink: 0;
 }
 
@@ -388,12 +459,18 @@ h1 {
   }
 
   .choice-btn {
-    width: min(42vw, 190px);
-    padding: 12px;
+    width: min(42vw, 34vh, 200px);
+    padding: 10px;
   }
 
   .canvas-card {
     border-radius: 16px;
+  }
+
+  .reference-bubble {
+    top: 10px;
+    width: 58px;
+    padding: 5px;
   }
 
   .palette-dock {
@@ -407,6 +484,33 @@ h1 {
   }
 }
 
+/* Short / landscape screens (phones & tablets turned sideways) */
+@media (max-height: 560px) {
+  .select-header {
+    padding-top: clamp(6px, 1.5vh, 14px);
+    gap: clamp(4px, 1vh, 10px);
+  }
+
+  .brand-logo {
+    height: clamp(46px, 22vh, 96px);
+  }
+
+  .choice-btn {
+    width: min(34vw, 40vh, 200px);
+    border-width: 4px;
+  }
+
+  .palette-dock {
+    padding: 6px 12px;
+    gap: 6px;
+  }
+
+  .color-btn {
+    width: 34px;
+    height: 34px;
+  }
+}
+
 .color-btn:hover {
   transform: scale(1.15);
 }
@@ -414,7 +518,7 @@ h1 {
 .color-btn.active {
   transform: scale(1.25);
   box-shadow: var(--active-ring);
-  border-color: #fff;
+  border-color: var(--ink);
 }
 
 /* ===================================

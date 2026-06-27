@@ -8,12 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=svg-viewbox-zoom-20260623">
+  <link rel="stylesheet" href="style.css?v=celeste-noshadow-responsive-20260627">
 </head>
 <body>
 
   <section class="screen select-screen active" id="select-screen">
     <header class="select-header">
+      <img class="brand-logo" src="Toy_Story_5_logo.svg" alt="Toy Story 5">
       <div class="header-glass">
         <div class="dot"></div>
         <h1>Elegí tu dibujo</h1>
@@ -22,16 +23,16 @@
 
     <main class="choice-grid" id="character-choices">
       <button class="choice-btn" data-svg="woody_clean EDIT COLOREADO.svg" aria-label="Woody">
-        <span class="choice-art"><img src="woody_clean EDIT COLOREADO.svg" alt=""></span>
+        <span class="choice-art"><img src="Woody.jpg" alt=""></span>
       </button>
       <button class="choice-btn" data-svg="buzz_lightyear_clean EDIT COLOREADO.svg" aria-label="Buzz Lightyear">
-        <span class="choice-art"><img src="buzz_lightyear_clean EDIT COLOREADO.svg" alt=""></span>
+        <span class="choice-art"><img src="Buzz.jpg" alt=""></span>
       </button>
       <button class="choice-btn" data-svg="jessie_bullseye_clean EDIT COLOREADO.svg" aria-label="Jessie y Bullseye">
-        <span class="choice-art"><img src="jessie_bullseye_clean EDIT COLOREADO.svg" alt=""></span>
+        <span class="choice-art"><img src="Jessie.jpg" alt=""></span>
       </button>
       <button class="choice-btn" data-svg="the_pond_frog_clean EDIT COLOREADO.svg" aria-label="Rana">
-        <span class="choice-art"><img src="the_pond_frog_clean EDIT COLOREADO.svg" alt=""></span>
+        <span class="choice-art"><img src="Lilypad.jpg" alt=""></span>
       </button>
     </main>
   </section>
@@ -40,9 +41,14 @@
     <header class="paint-header">
       <button class="back-btn" id="back-to-select" aria-label="Volver">‹</button>
       <div class="timer-pill" id="timer">03:00</div>
+      <img class="brand-logo-mini" src="Toy_Story_5_logo.svg" alt="Toy Story 5">
     </header>
 
     <main class="canvas-container">
+      <aside class="reference-bubble" id="reference-bubble" aria-hidden="true">
+        <img id="reference-image" alt="">
+      </aside>
+
       <div class="canvas-card" id="canvas-card">
         <div id="svg-wrapper">
           <div class="loading-msg">Cargando...</div>
@@ -56,6 +62,6 @@
   </section>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="app.js?v=svg-viewbox-zoom-20260623"></script>
+  <script src="app.js?v=celeste-noshadow-responsive-20260627"></script>
 </body>
 </html>

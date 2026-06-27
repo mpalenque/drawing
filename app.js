@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const svgWrapper = document.getElementById('svg-wrapper');
   const palette = document.getElementById('palette');
   const timerEl = document.getElementById('timer');
+  const referenceBubble = document.getElementById('reference-bubble');
+  const referenceImage = document.getElementById('reference-image');
   const choiceButtons = document.querySelectorAll('.choice-btn');
   const backButton = document.getElementById('back-to-select');
 
@@ -93,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     zoomGesture = null;
     resetViewportTransform();
     svgWrapper.innerHTML = '<div class="loading-msg">Cargando...</div>';
+    clearReferenceImage();
     palette.innerHTML = '';
     paintScreen.classList.remove('active');
     selectScreen.classList.add('active');
@@ -109,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     zoomGesture = null;
     resetViewportTransform();
     svgWrapper.innerHTML = '<div class="loading-msg">Cargando...</div>';
+    setReferenceImage(filename);
 
     fetch(filename)
       .then(res => {
@@ -140,7 +144,20 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(err => {
         console.error('Error loading SVG:', err);
         svgWrapper.innerHTML = '<div class="loading-msg">Error al cargar el dibujo.</div>';
+        clearReferenceImage();
       });
+  }
+
+  function setReferenceImage(filename) {
+    if (!referenceBubble || !referenceImage) return;
+    referenceImage.src = filename;
+    referenceBubble.classList.add('is-visible');
+  }
+
+  function clearReferenceImage() {
+    if (!referenceBubble || !referenceImage) return;
+    referenceImage.removeAttribute('src');
+    referenceBubble.classList.remove('is-visible');
   }
 
   function handleCanvasPointerDown(e) {
