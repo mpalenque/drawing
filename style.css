@@ -93,8 +93,7 @@ body {
   height: 100%;
   object-fit: contain;
   display: block;
-  /* Los dibujos vienen con fondo blanco; multiply lo funde con el papel (queda transparente). */
-  mix-blend-mode: multiply;
+  /* Los PNG ya tienen el fondo blanco transparente, así el hover (transform) no lo revela. */
 }
 .choice-btn:hover,
 .choice-btn:active { transform: scale(1.06) rotate(-1deg); }
