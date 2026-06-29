@@ -1,28 +1,13 @@
 /* ===================================
-   Google Fonts
-   =================================== */
-
-/* ===================================
-   CSS Variables
+   Toy Story - A Colorear  (GUI 1920x1200 landscape)
+   Fonts: ver fonts/fonts.css (Outfit, Luckiest Guy, Baloo 2)
    =================================== */
 :root {
   --font: 'Outfit', -apple-system, sans-serif;
   --font-display: 'Luckiest Guy', 'Outfit', cursive;
-  --bg: #82aef8;
-  --ink: #15233f;
-  --ts-red: #ef3e42;
-  --ts-blue: #0060a9;
-  --ts-yellow: #ffdd00;
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.75);
-  --shadow-deep: none;
-  --canvas-bg: #ffffff;
-  --active-ring: 0 0 0 4px #ffffff;
+  --font-round: 'Baloo 2', 'Outfit', sans-serif;
 }
 
-/* ===================================
-   Reset & Base
-   =================================== */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -30,331 +15,95 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-  font-family: var(--font);
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+html, body {
+  width: 100%;
+  height: 100%;
+}
 
-  /* Tablet critical: block all default touch gestures */
+body {
+  background: #1a1a1a;            /* letterbox */
+  font-family: var(--font);
+  overflow: hidden;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   overscroll-behavior: none;
 }
 
+/* ---- Stage fijo de 1920x1200 escalado a la pantalla ---- */
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1200px;
+  transform: translate(-50%, -50%) scale(1);
+  transform-origin: center center;
+  overflow: hidden;
+  background: #ffffff;
+}
+
 .screen {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   display: none;
-  flex-direction: column;
-  align-items: center;
+}
+.screen.active { display: block; }
+
+/* Imagenes de fondo / decorativas */
+.sel-bg, .paper-bg, .sel-title, .thumb, .felicitaciones,
+.choice-btn img, .eraser-btn img {
+  position: absolute;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
-.screen.active {
-  display: flex;
+.copyright {
+  position: absolute;
+  right: 19px;
+  bottom: 16px;
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
+.select-screen .copyright { color: #ffffff; }
+.paint-screen .copyright,
+.gameover-screen .copyright { color: #6e6e6e; }
 
 /* ===================================
-   Header
+   SELECCIÓN
    =================================== */
-header {
-  width: 100%;
-  padding: 14px 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-shrink: 0;
-  z-index: 10;
-}
-
-.select-header {
-  flex-direction: column;
-  gap: clamp(10px, 2vh, 18px);
-  padding-top: clamp(14px, 3.5vh, 32px);
-}
-
-.select-header .header-glass {
-  background: rgba(255, 255, 255, 0.62);
-  border-color: rgba(255, 255, 255, 0.85);
-}
-
-/* Toy Story 5 logo - selection screen */
-.brand-logo {
-  width: auto;
-  height: clamp(64px, 14vh, 150px);
-  max-width: 80vw;
-  object-fit: contain;
-  display: block;
-  flex-shrink: 0;
-  animation: fadeDown 0.6s ease;
-  pointer-events: none;
-}
-
-/* Toy Story 5 logo - coloring screen (small badge, top-right) */
-.brand-logo-mini {
-  justify-self: end;
-  align-self: center;
-  height: clamp(42px, 7vh, 58px);
-  width: auto;
-  object-fit: contain;
-  display: block;
-  pointer-events: none;
-}
-
-/* ===================================
-   Call to action "¡A colorear!"
-   =================================== */
-.cta-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  animation: fadeUp 0.6s ease;
-}
-
-.cta-pill,
-.paint-cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--ts-red);
-  color: #ffffff;
-  font-family: var(--font-display);
-  font-weight: 400;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  border: 3px solid #ffffff;
-  border-radius: 999px;
-  text-align: center;
-}
-
-.cta-pill {
-  padding: 12px 30px;
-  font-size: clamp(1.2rem, 4.2vw, 1.9rem);
-  animation: ctaBounce 2.4s ease-in-out infinite;
-}
-
-.cta-hint {
-  color: var(--ink);
-  font-weight: 700;
-  font-size: clamp(0.82rem, 2.6vw, 1.02rem);
-  opacity: 0.8;
-}
-
-.paint-cta {
-  padding: 7px 22px;
-  font-size: clamp(0.9rem, 3vw, 1.2rem);
-  border-width: 2px;
-  max-width: 94vw;
-}
-
-.select-header h1 {
-  font-size: clamp(1.35rem, 4vw, 2.1rem);
-}
-
-.paint-header {
-  width: 100%;
-  padding: 14px 20px 8px;
-  display: grid;
-  grid-template-columns: 56px 1fr 56px;
-  align-items: center;
-  flex-shrink: 0;
-  z-index: 10;
-}
-
-.header-glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  padding: 10px 28px;
-  border-radius: 50px;
-  box-shadow: var(--shadow-deep);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  animation: fadeDown 0.6s ease;
-}
-
-h1 {
-  font-size: clamp(1rem, 3.5vw, 1.4rem);
-  font-weight: 800;
-  color: var(--ink);
-  letter-spacing: 0.5px;
-}
-
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #e63946;
-  box-shadow: 0 0 12px #e63946;
-  animation: pulse 2s infinite alternate;
-  flex-shrink: 0;
-}
-
-.choice-grid {
-  flex: 1;
-  min-height: 0;
-  width: min(980px, 100%);
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  place-items: center;
-  gap: clamp(12px, 3vw, 30px);
-  padding: clamp(10px, 3vw, 30px);
-}
+.sel-bg { left: -54px; top: -112px; width: 2031px; height: 1312px; }
 
 .choice-btn {
-  /* Sized by the smaller of available width/height so the 2x2 grid always fits */
-  width: min(42vw, 30vh, 250px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 6px solid #ffffff;
-  background: #ffffff;
-  box-shadow: none;
-  display: grid;
-  place-items: center;
-  padding: clamp(8px, 1.6vw, 18px);
-  overflow: hidden;
+  position: absolute;
+  background: none;
+  border: none;
+  padding: 0;
   cursor: pointer;
-  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), border-color 0.2s, background 0.2s;
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  transform-origin: center center;
 }
-
+.choice-btn img { position: static; width: 100%; height: 100%; object-fit: contain; display: block; }
 .choice-btn:hover,
-.choice-btn:active {
-  transform: scale(1.06);
-  border-color: #0060a9;
-  background: #ffffff;
-}
+.choice-btn:active { transform: scale(1.06) rotate(-1deg); }
 
-.choice-art {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: #fafafa;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-
-.choice-art img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-}
-
-.back-btn {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  border: 2px solid var(--glass-border);
-  background: var(--glass-bg);
-  color: var(--ink);
-  font-size: 2rem;
-  line-height: 1;
-  font-weight: 800;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.timer-pill {
-  justify-self: center;
-  min-width: 118px;
-  border-radius: 999px;
-  padding: 10px 22px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-deep);
-  color: var(--ts-blue);
-  font-family: var(--font-display);
-  font-weight: 400;
-  letter-spacing: 1px;
-  font-size: clamp(1.25rem, 4vw, 2rem);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
+.sel-title { /* posicion via inline style */ }
 
 /* ===================================
-   Canvas
+   COLOREAR
    =================================== */
-.canvas-container {
-  flex: 1;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  padding: 8px 16px 10px;
-  touch-action: none;
-  min-height: 0; /* allow flex shrink */
-}
+.paper-bg { left: 0; top: 0; width: 1920px; height: 1200px; object-fit: cover; }
 
-.reference-bubble {
+.canvas-area {
   position: absolute;
-  left: max(14px, env(safe-area-inset-left, 0px));
-  top: 18px;
-  width: clamp(64px, 10vw, 92px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  padding: 6px;
-  background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(245,245,245,0.72));
-  border: 1px solid rgba(255,255,255,0.78);
-  box-shadow: none;
-  display: grid;
-  place-items: center;
-  opacity: 0;
-  transform: translateX(-8px) scale(0.92);
-  pointer-events: none;
-  z-index: 8;
-  transition: opacity 0.22s ease, transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
-}
-
-.reference-bubble.is-visible {
-  opacity: 1;
-  transform: translateX(0) scale(1);
-}
-
-.reference-bubble::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: inherit;
-  border: 1px solid rgba(255,255,255,0.22);
-}
-
-.reference-bubble img {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  object-fit: contain;
-  background: #fafafa;
-  display: block;
-}
-
-.canvas-card {
-  background: var(--canvas-bg);
-  border-radius: 24px;
-  box-shadow: none;
+  left: 264px; top: 24px;
+  width: 1103px; height: 1151px;
   display: flex;
-  justify-content: center;
   align-items: center;
-  overflow: hidden;
-  width: 100%;
-  height: 100%;
-  max-width: 720px;
-  max-height: 100%;
-  animation: scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  justify-content: center;
 }
 
 #svg-wrapper {
@@ -366,20 +115,108 @@ h1 {
   touch-action: none;
 }
 
-/* Make inline SVGs drawable */
-#svg-wrapper svg {
+/* ---- Lápices de colores (columna izquierda) ---- */
+.pencil-dock {
+  position: absolute;
+  left: 0; top: 0;
+  width: 260px; height: 1200px;
+  pointer-events: none;
+}
+.pencil {
+  position: absolute;
+  left: -232px;
+  width: 420px;
+  height: 92px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  transform-origin: left center;
+  transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+}
+.pencil svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 5px 5px rgba(0,0,0,0.22));
+}
+.pencil:hover { transform: translateX(22px); }
+.pencil.selected { transform: translateX(58px); z-index: 3; }
+
+.eraser-btn {
+  position: absolute;
+  left: -3px; top: 1068px;
+  width: 181px; height: 70px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transform-origin: left center;
+  transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+}
+.eraser-btn img { position: static; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.22)); }
+.eraser-btn:hover { transform: translateX(16px); }
+.eraser-btn.selected { transform: translateX(44px); }
+
+/* ---- Timer (arriba derecha, hueco blanco con contorno) ---- */
+.timer {
+  position: absolute;
+  left: 1691px; top: 49px;
+  width: 200px; height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-round);
+  font-weight: 800;
+  font-size: 66px;
+  line-height: 1;
+  color: #ffffff;
+  -webkit-text-stroke: 5px #1a1a1a;
+  paint-order: stroke fill;
+  letter-spacing: 1px;
+}
+
+/* ---- Miniatura color de referencia (abajo derecha) ---- */
+.thumb {
+  left: 1367px; top: 657px;
+  width: 553px; height: 553px;
+  object-fit: contain;
+  /* Los JPG tienen fondo blanco; multiply lo funde con el papel y deja solo el personaje. */
+  mix-blend-mode: multiply;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.thumb.is-visible { opacity: 1; }
+
+/* ===================================
+   GAME OVER / FELICITACIONES
+   =================================== */
+.gameover-art {
+  position: absolute;
+  left: 51px; top: 24px;
+  width: 1103px; height: 1151px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gameover-art svg { width: 100%; height: 100%; pointer-events: none; }
+
+/* ===================================
+   Motor de dibujo (SVG de coloreo)
+   =================================== */
+#svg-wrapper svg,
+#gameover-art svg {
   width: 100%;
   height: 100%;
   max-width: 100%;
   max-height: 100%;
   display: block;
-  touch-action: none;
-  image-rendering: auto;
   shape-rendering: geometricPrecision;
   text-rendering: geometricPrecision;
 }
+#svg-wrapper svg { touch-action: none; }
 
-/* Base coloring-page look for the untouched SVG shapes */
 #svg-wrapper svg path,
 #svg-wrapper svg polygon,
 #svg-wrapper svg circle,
@@ -398,7 +235,8 @@ h1 {
   pointer-events: none;
 }
 
-#svg-wrapper svg .draw-stroke {
+#svg-wrapper svg .draw-stroke,
+#gameover-art svg .draw-stroke {
   fill: none !important;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -407,13 +245,13 @@ h1 {
   transition: none;
 }
 
-#svg-wrapper svg .locked-contour {
+#svg-wrapper svg .locked-contour,
+#gameover-art svg .locked-contour {
   fill: #000000 !important;
   stroke: none !important;
   pointer-events: none !important;
 }
 
-/* Exclude the outer rectangle/background path (usually the first huge path) */
 #svg-wrapper svg:not(.group-coloring-svg) path:first-child {
   fill: #ffffff;
   stroke: #1a1a1a;
@@ -438,235 +276,31 @@ h1 {
   pointer-events: auto;
 }
 
+/* El game over solo muestra: nada interactivo */
+#gameover-art svg path,
+#gameover-art svg polygon,
+#gameover-art svg circle,
+#gameover-art svg ellipse,
+#gameover-art svg rect {
+  fill: #ffffff;
+  stroke: #1a1a1a;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+#gameover-art svg.group-coloring-svg path:not(.draw-stroke):not(.locked-contour),
+#gameover-art svg.group-coloring-svg polygon:not(.draw-stroke):not(.locked-contour),
+#gameover-art svg.group-coloring-svg circle:not(.draw-stroke):not(.locked-contour),
+#gameover-art svg.group-coloring-svg ellipse:not(.draw-stroke):not(.locked-contour),
+#gameover-art svg.group-coloring-svg rect:not(.draw-stroke):not(.locked-contour) {
+  fill: #ffffff !important;
+  stroke: #1a1a1a !important;
+  stroke-width: 1.5px;
+}
+
 .loading-msg {
   color: #888;
   font-size: 1.2rem;
   font-weight: 600;
   text-align: center;
   padding: 40px;
-}
-
-/* ===================================
-   Bottom Controls Bar
-   =================================== */
-.controls-bar {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  flex-shrink: 0;
-  z-index: 10;
-}
-
-/* ===================================
-   Palette Dock
-   =================================== */
-.palette-dock {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  padding: 10px 20px;
-  border-radius: 50px;
-  box-shadow: var(--shadow-deep);
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-  max-width: 100%;
-  animation: fadeUp 0.8s ease;
-}
-
-.color-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 3px solid rgba(0,0,0,0.15);
-  cursor: pointer;
-  position: relative;
-  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s;
-  box-shadow: none;
-  flex-shrink: 0;
-}
-
-.erase-btn {
-  background: #ffffff !important;
-  color: #555;
-  font-size: 1rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-color: rgba(0,0,0,0.2);
-}
-
-@media (max-width: 700px) {
-  .choice-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-    padding: 18px;
-  }
-
-  .choice-btn {
-    width: min(42vw, 34vh, 200px);
-    padding: 10px;
-  }
-
-  .canvas-card {
-    border-radius: 16px;
-  }
-
-  .reference-bubble {
-    top: 10px;
-    width: 58px;
-    padding: 5px;
-  }
-
-  .palette-dock {
-    padding: 8px 12px;
-    gap: 8px;
-  }
-
-  .color-btn {
-    width: 38px;
-    height: 38px;
-  }
-}
-
-/* Short / landscape screens (phones & tablets turned sideways) */
-@media (max-height: 560px) {
-  .select-header {
-    padding-top: clamp(6px, 1.5vh, 14px);
-    gap: clamp(4px, 1vh, 10px);
-  }
-
-  .brand-logo {
-    height: clamp(46px, 22vh, 96px);
-  }
-
-  .choice-btn {
-    width: min(30vw, 40vh, 190px);
-    border-width: 4px;
-  }
-
-  .cta-pill {
-    padding: 6px 18px;
-    font-size: clamp(0.95rem, 4vw, 1.2rem);
-  }
-
-  .cta-hint,
-  .paint-cta {
-    display: none;
-  }
-
-  .palette-dock {
-    padding: 6px 12px;
-    gap: 6px;
-  }
-
-  .color-btn {
-    width: 34px;
-    height: 34px;
-  }
-}
-
-.color-btn:hover {
-  transform: scale(1.15);
-}
-
-.color-btn.active {
-  transform: scale(1.25);
-  box-shadow: var(--active-ring);
-  border-color: var(--ink);
-}
-
-/* ===================================
-   Animations
-   =================================== */
-@keyframes fadeDown {
-  from { opacity: 0; transform: translateY(-16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.93); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-@keyframes ctaBounce {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-5px); }
-}
-
-@keyframes pulse {
-  0%   { transform: scale(0.9); box-shadow: 0 0 5px #e63946; }
-  100% { transform: scale(1.2); box-shadow: 0 0 16px #e63946; }
-}
-
-@keyframes crayonFill {
-  0%   { fill-opacity: 0.2; }
-  30%  { fill-opacity: 0.8; }
-  60%  { fill-opacity: 0.5; }
-  100% { fill-opacity: 1; }
-}
-
-.crayon-anim {
-  animation: crayonFill 0.3s steps(4) forwards;
-}
-
-/* ===================================
-   Drag & Drop Overlay
-   =================================== */
-.drag-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-  background: rgba(10, 10, 16, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
-.drag-overlay.active {
-  opacity: 1;
-}
-
-.drag-content {
-  background: var(--glass-bg);
-  border: 3px dashed rgba(255,255,255,0.4);
-  border-radius: 24px;
-  padding: 50px 80px;
-  text-align: center;
-  color: #fff;
-  box-shadow: var(--shadow-deep);
-  transform: scale(0.9);
-  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
-}
-
-.drag-overlay.active .drag-content {
-  transform: scale(1);
-}
-
-.drag-content .icon {
-  font-size: 5rem;
-  display: block;
-  margin-bottom: 15px;
 }

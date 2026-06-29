@@ -4,3 +4,10 @@
 # Dependencias y artefactos regenerables del proyecto del APK (Capacitor/Android)
 app-build/node_modules/
 app-build/android/
+
+# Entorno python para extraer PSD
+.psdvenv/
+# Fuente de diseño (pesada, no necesaria en runtime)
+*.psd
+# Capturas temporales
+scratch_*.png

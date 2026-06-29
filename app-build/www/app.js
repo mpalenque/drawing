@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const BRUSH_SIZE_PX = 18;
   const MIN_POINT_DISTANCE_PX = 2.5;
   const PAINT_SECONDS = 180;
+  const GAMEOVER_SECONDS = 15;
   const SOUND_FOUND_TOY = 'found_toy.wav';
   const SOUND_GAME_OVER = 'game_over.mp3';
 
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let clipCounter = 0;
   let strokeCounter = 0;
   let timerId = null;
+  let gameoverTimeout = null;
   let timeLeft = PAINT_SECONDS;
   let baseViewBox = null;
   let viewportViewBox = null;
@@ -43,13 +45,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const selectScreen = document.getElementById('select-screen');
   const paintScreen = document.getElementById('paint-screen');
+  const gameoverScreen = document.getElementById('gameover-screen');
+  const gameoverArt = document.getElementById('gameover-art');
   const svgWrapper = document.getElementById('svg-wrapper');
   const palette = document.getElementById('palette');
   const timerEl = document.getElementById('timer');
-  const referenceBubble = document.getElementById('reference-bubble');
-  const referenceImage = document.getElementById('reference-image');
+  const thumbEl = document.getElementById('thumb');
+  const eraserBtn = document.getElementById('eraser-btn');
   const choiceButtons = document.querySelectorAll('.choice-btn');
-  const backButton = document.getElementById('back-to-select');
+  const stage = document.getElementById('stage');
+
+  // El stage es fijo de 1920x1200 y se escala para entrar en la pantalla (tablet horizontal).
+  function fitStage() {
+    const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1200);
+    stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
+  }
+  window.addEventListener('resize', fitStage);
+  window.addEventListener('orientationchange', fitStage);
+  fitStage();
 
   function publishEvent(type, payload) {
     if (socket && socket.connected) {
@@ -85,33 +98,46 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       const svgFile = btn.getAttribute('data-svg');
-      if (svgFile) startCharacter(svgFile);
+      const thumb = btn.getAttribute('data-thumb');
+      if (svgFile) startCharacter(svgFile, thumb);
     });
   });
 
-  backButton.addEventListener('pointerdown', (e) => {
+  eraserBtn.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    returnToSelect(true);
+    setCurrentColor('#FFFFFF', eraserBtn);
   });
 
-  function startCharacter(svgFile) {
+  // Hooks por URL: ?go=archivo.svg autoarranca un personaje (kiosko/test); ?secs=N acorta el timer (test).
+  const secsOverride = Number.parseInt(urlParams.get('secs'), 10);
+  const autoGo = urlParams.get('go');
+  if (autoGo) {
+    const autoBtn = document.querySelector(`.choice-btn[data-svg="${autoGo}"]`);
+    if (autoBtn) startCharacter(autoGo, autoBtn.getAttribute('data-thumb'));
+  }
+
+  function startCharacter(svgFile, thumb) {
     playSound(SOUND_FOUND_TOY);
     selectScreen.classList.remove('active');
+    gameoverScreen.classList.remove('active');
     paintScreen.classList.add('active');
-    loadSVG(svgFile);
+    loadSVG(svgFile, thumb);
   }
 
   function returnToSelect(announce) {
     activeStroke = null;
     stopTimer();
+    if (gameoverTimeout) { window.clearTimeout(gameoverTimeout); gameoverTimeout = null; }
     currentSVG = null;
     activePointers.clear();
     zoomGesture = null;
     resetViewportTransform();
     svgWrapper.innerHTML = '<div class="loading-msg">Cargando...</div>';
-    clearReferenceImage();
+    gameoverArt.innerHTML = '';
+    clearThumb();
     palette.innerHTML = '';
     paintScreen.classList.remove('active');
+    gameoverScreen.classList.remove('active');
     selectScreen.classList.add('active');
 
     if (announce) {
@@ -119,14 +145,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function loadSVG(filename) {
+  // Pantalla final: muestra el dibujo coloreado 15s y vuelve al inicio.
+  function showGameOver() {
+    stopTimer();
+    const svg = svgWrapper.querySelector('svg');
+    gameoverArt.innerHTML = '';
+    if (svg) {
+      const clone = svg.cloneNode(true);
+      // Mostrar el dibujo completo, sin el zoom que pudiera tener al terminar.
+      if (baseViewBox) clone.setAttribute('viewBox', serializeViewBox(baseViewBox));
+      clone.style.transform = 'none';
+      gameoverArt.appendChild(clone);
+    }
+    paintScreen.classList.remove('active');
+    gameoverScreen.classList.add('active');
+    gameoverTimeout = window.setTimeout(() => returnToSelect(true), GAMEOVER_SECONDS * 1000);
+  }
+
+  function loadSVG(filename, thumb) {
     activeStroke = null;
     currentSVG = filename;
     activePointers.clear();
     zoomGesture = null;
     resetViewportTransform();
     svgWrapper.innerHTML = '<div class="loading-msg">Cargando...</div>';
-    setReferenceImage(filename);
+    setThumb(thumb);
 
     fetch(filename)
       .then(res => {
@@ -150,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyViewportTransform();
 
         const setup = setupColoringSvg(svg);
-        buildPalette(setup.paletteColors);
+        buildPencils(setup.paletteColors);
         startTimer();
 
         publishEvent('cambiar_personaje', { tabletId, svgFile: currentSVG });
@@ -158,20 +201,24 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(err => {
         console.error('Error loading SVG:', err);
         svgWrapper.innerHTML = '<div class="loading-msg">Error al cargar el dibujo.</div>';
-        clearReferenceImage();
+        clearThumb();
       });
   }
 
-  function setReferenceImage(filename) {
-    if (!referenceBubble || !referenceImage) return;
-    referenceImage.src = filename;
-    referenceBubble.classList.add('is-visible');
+  function setThumb(src) {
+    if (!thumbEl) return;
+    if (src) {
+      thumbEl.src = src;
+      thumbEl.classList.add('is-visible');
+    } else {
+      clearThumb();
+    }
   }
 
-  function clearReferenceImage() {
-    if (!referenceBubble || !referenceImage) return;
-    referenceImage.removeAttribute('src');
-    referenceBubble.classList.remove('is-visible');
+  function clearThumb() {
+    if (!thumbEl) return;
+    thumbEl.removeAttribute('src');
+    thumbEl.classList.remove('is-visible');
   }
 
   function handleCanvasPointerDown(e) {
@@ -574,41 +621,50 @@ document.addEventListener('DOMContentLoaded', () => {
     return hex.slice(0, 7).toUpperCase();
   }
 
-  function buildPalette(colors) {
+  // Columna de lápices a la izquierda. Un template de lápiz al que le asignamos el color.
+  // Hay más lápices que colores: por ahora se repiten los colores de la paleta.
+  function buildPencils(colors) {
     palette.innerHTML = '';
-    colors.forEach((color, index) => {
-      const btn = document.createElement('button');
-      btn.className = `color-btn${index === 0 ? ' active' : ''}`;
-      btn.type = 'button';
-      btn.dataset.color = color;
-      btn.style.backgroundColor = color;
-      btn.setAttribute('aria-label', color);
-      btn.addEventListener('pointerdown', (e) => {
+    const palette_colors = (colors && colors.length) ? colors : ['#000000'];
+    const COUNT = 13;
+    const TOP0 = 26;
+    const GAP = 76;
+    for (let i = 0; i < COUNT; i += 1) {
+      const color = palette_colors[i % palette_colors.length];
+      const pencil = document.createElement('button');
+      pencil.className = 'pencil';
+      pencil.type = 'button';
+      pencil.dataset.color = color;
+      pencil.style.top = `${TOP0 + i * GAP}px`;
+      pencil.setAttribute('aria-label', color);
+      pencil.innerHTML = makePencilSvg(color);
+      pencil.addEventListener('pointerdown', (e) => {
         e.preventDefault();
-        setCurrentColor(color, btn);
+        setCurrentColor(color, pencil);
       });
-      palette.appendChild(btn);
-    });
+      palette.appendChild(pencil);
+    }
+    setCurrentColor(palette_colors[0], palette.querySelector('.pencil'));
+  }
 
-    const eraseBtn = document.createElement('button');
-    eraseBtn.className = 'color-btn erase-btn';
-    eraseBtn.type = 'button';
-    eraseBtn.dataset.color = '#FFFFFF';
-    eraseBtn.setAttribute('aria-label', 'Borrar');
-    eraseBtn.textContent = '×';
-    eraseBtn.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      setCurrentColor('#FFFFFF', eraseBtn);
-    });
-    palette.appendChild(eraseBtn);
-
-    setCurrentColor(colors[0] || '#000000', palette.querySelector('.color-btn'));
+  // Lápiz de color como SVG, recoloreable: el barril y la punta toman el color de la paleta.
+  function makePencilSvg(color) {
+    return `<svg viewBox="0 0 440 96" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+        <g stroke="#2e2117" stroke-width="2.5" stroke-linejoin="round">
+          <rect x="2" y="26" width="330" height="44" rx="12" fill="${color}"></rect>
+          <polygon points="330,26 400,43 400,53 330,70" fill="#f2d9a8"></polygon>
+          <polygon points="400,43 432,48 400,53" fill="${color}"></polygon>
+        </g>
+        <rect x="16" y="31" width="310" height="8" rx="4" fill="rgba(255,255,255,0.38)"></rect>
+        <rect x="16" y="60" width="310" height="6" rx="3" fill="rgba(0,0,0,0.12)"></rect>
+      </svg>`;
   }
 
   function setCurrentColor(color, activeButton) {
     currentColor = color;
-    palette.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
-    if (activeButton) activeButton.classList.add('active');
+    document.querySelectorAll('.pencil.selected, .eraser-btn.selected')
+      .forEach(el => el.classList.remove('selected'));
+    if (activeButton) activeButton.classList.add('selected');
   }
 
   function getColorableTargetAtPoint(clientX, clientY) {
@@ -788,14 +844,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function startTimer() {
     stopTimer();
-    timeLeft = PAINT_SECONDS;
+    timeLeft = (Number.isFinite(secsOverride) && secsOverride > 0) ? secsOverride : PAINT_SECONDS;
     updateTimer();
     timerId = window.setInterval(() => {
       timeLeft -= 1;
       updateTimer();
       if (timeLeft <= 0) {
         playSound(SOUND_GAME_OVER);
-        returnToSelect(true);
+        showGameOver();
       }
     }, 1000);
   }
@@ -808,7 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateTimer() {
-    const minutes = Math.floor(Math.max(timeLeft, 0) / 60).toString().padStart(2, '0');
+    const minutes = Math.floor(Math.max(timeLeft, 0) / 60);
     const seconds = (Math.max(timeLeft, 0) % 60).toString().padStart(2, '0');
     timerEl.textContent = `${minutes}:${seconds}`;
   }

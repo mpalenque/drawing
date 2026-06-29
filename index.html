@@ -5,64 +5,61 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="Toy Story Drawing App - Colorea personajes en tu tablet.">
   <title>Toy Story - A Colorear</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=sounds-20260629">
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="style.css?v=psd-gui-20260629">
 </head>
 <body>
+  <div class="stage" id="stage">
 
-  <section class="screen select-screen active" id="select-screen">
-    <header class="select-header">
-      <img class="brand-logo" src="Toy_Story_5_logo.svg" alt="Toy Story 5">
-      <div class="cta-block">
-        <div class="cta-pill">¡A colorear!</div>
-        <p class="cta-hint">Elegí tu personaje y pintalo</p>
+    <!-- ============ SELECCIÓN ============ -->
+    <section class="screen select-screen active" id="select-screen">
+      <img class="sel-bg" src="gui/sel_bg.png" alt="">
+      <button class="choice-btn" data-svg="buzz_coloring.svg" data-thumb="Buzz.jpg"
+              style="left:68px;top:357px;width:303px;height:478px" aria-label="Buzz Lightyear">
+        <img src="gui/sel_paper_buzz.png" alt="Buzz Lightyear">
+      </button>
+      <button class="choice-btn" data-svg="frog_coloring.svg" data-thumb="Lilypad.jpg"
+              style="left:512px;top:394px;width:407px;height:404px" aria-label="La rana del estanque">
+        <img src="gui/sel_paper_frog.png" alt="La rana del estanque">
+      </button>
+      <button class="choice-btn" data-svg="jessie_coloring.svg" data-thumb="Jessie.jpg"
+              style="left:1000px;top:384px;width:383px;height:400px" aria-label="Jessie y Bullseye">
+        <img src="gui/sel_paper_jessie.png" alt="Jessie y Bullseye">
+      </button>
+      <button class="choice-btn" data-svg="woody_coloring.svg" data-thumb="Woody.jpg"
+              style="left:1590px;top:327px;width:221px;height:540px" aria-label="Woody">
+        <img src="gui/sel_paper_woody.png" alt="Woody">
+      </button>
+      <img class="sel-title" src="gui/sel_title.png" alt="Elegí el dibujo a colorear"
+           style="left:536px;top:1048px;width:849px;height:125px">
+      <span class="copyright">© 2026 Disney/Pixar</span>
+    </section>
+
+    <!-- ============ COLOREAR ============ -->
+    <section class="screen paint-screen" id="paint-screen">
+      <img class="paper-bg" src="gui/paper_bg.png" alt="">
+      <div class="canvas-area" id="canvas-area">
+        <div id="svg-wrapper"><div class="loading-msg">Cargando...</div></div>
       </div>
-    </header>
+      <div class="pencil-dock" id="palette"></div>
+      <button class="eraser-btn" id="eraser-btn" aria-label="Borrar"><img src="gui/eraser.png" alt=""></button>
+      <div class="timer" id="timer">3:00</div>
+      <img class="thumb" id="thumb" alt="">
+      <span class="copyright">© 2026 Disney/Pixar</span>
+    </section>
 
-    <main class="choice-grid" id="character-choices">
-      <button class="choice-btn" data-svg="woody_clean EDIT COLOREADO.svg" aria-label="Woody">
-        <span class="choice-art"><img src="Woody.jpg" alt=""></span>
-      </button>
-      <button class="choice-btn" data-svg="buzz_lightyear_clean EDIT COLOREADO.svg" aria-label="Buzz Lightyear">
-        <span class="choice-art"><img src="Buzz.jpg" alt=""></span>
-      </button>
-      <button class="choice-btn" data-svg="jessie_bullseye_clean EDIT COLOREADO.svg" aria-label="Jessie y Bullseye">
-        <span class="choice-art"><img src="Jessie.jpg" alt=""></span>
-      </button>
-      <button class="choice-btn" data-svg="the_pond_frog_clean EDIT COLOREADO.svg" aria-label="Rana">
-        <span class="choice-art"><img src="Lilypad.jpg" alt=""></span>
-      </button>
-    </main>
-  </section>
+    <!-- ============ GAME OVER / FELICITACIONES ============ -->
+    <section class="screen gameover-screen" id="gameover-screen">
+      <img class="paper-bg" src="gui/paper_bg.png" alt="">
+      <div class="gameover-art" id="gameover-art"></div>
+      <img class="felicitaciones" src="gui/felicitaciones.png" alt="¡Felicitaciones! Tu dibujo quedó fantástico."
+           style="left:1129px;top:406px;width:749px;height:227px">
+      <span class="copyright">© 2026 Disney/Pixar</span>
+    </section>
 
-  <section class="screen paint-screen" id="paint-screen">
-    <header class="paint-header">
-      <button class="back-btn" id="back-to-select" aria-label="Volver">‹</button>
-      <div class="timer-pill" id="timer">03:00</div>
-      <img class="brand-logo-mini" src="Toy_Story_5_logo.svg" alt="Toy Story 5">
-    </header>
-
-    <main class="canvas-container">
-      <aside class="reference-bubble" id="reference-bubble" aria-hidden="true">
-        <img id="reference-image" alt="">
-      </aside>
-
-      <div class="canvas-card" id="canvas-card">
-        <div id="svg-wrapper">
-          <div class="loading-msg">Cargando...</div>
-        </div>
-      </div>
-    </main>
-
-    <footer class="controls-bar">
-      <div class="paint-cta">¡A colorear!</div>
-      <div class="palette-dock" id="palette"></div>
-    </footer>
-  </section>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="app.js?v=sounds-20260629"></script>
+  <script src="app.js?v=psd-gui-20260629"></script>
 </body>
 </html>
