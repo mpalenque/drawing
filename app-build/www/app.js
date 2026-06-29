@@ -4,6 +4,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const BRUSH_SIZE_PX = 18;
   const MIN_POINT_DISTANCE_PX = 2.5;
   const PAINT_SECONDS = 180;
+  const SOUND_FOUND_TOY = 'found_toy.wav';
+  const SOUND_GAME_OVER = 'game_over.mp3';
+
+  function playSound(src) {
+    try {
+      const audio = new Audio(src);
+      audio.currentTime = 0;
+      const played = audio.play();
+      if (played && typeof played.catch === 'function') played.catch(() => {});
+    } catch (err) {
+      // Si el navegador bloquea o no soporta audio, el juego sigue funcionando.
+    }
+  }
 
   let currentColor = '#000000';
   let currentSVG = null;
@@ -82,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function startCharacter(svgFile) {
+    playSound(SOUND_FOUND_TOY);
     selectScreen.classList.remove('active');
     paintScreen.classList.add('active');
     loadSVG(svgFile);
@@ -780,6 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
       timeLeft -= 1;
       updateTimer();
       if (timeLeft <= 0) {
+        playSound(SOUND_GAME_OVER);
         returnToSelect(true);
       }
     }, 1000);
