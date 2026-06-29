@@ -637,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pencil.dataset.color = color;
       pencil.style.top = `${TOP0 + i * GAP}px`;
       pencil.setAttribute('aria-label', color);
-      pencil.innerHTML = makePencilSvg(color);
+      pencil.innerHTML = makePencilSvg(color, i);
       pencil.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         setCurrentColor(color, pencil);
@@ -647,16 +647,46 @@ document.addEventListener('DOMContentLoaded', () => {
     setCurrentColor(palette_colors[0], palette.querySelector('.pencil'));
   }
 
-  // Lápiz de color como SVG, recoloreable: el barril y la punta toman el color de la paleta.
-  function makePencilSvg(color) {
-    return `<svg viewBox="0 0 440 96" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-        <g stroke="#2e2117" stroke-width="2.5" stroke-linejoin="round">
-          <rect x="2" y="26" width="330" height="44" rx="12" fill="${color}"></rect>
-          <polygon points="330,26 400,43 400,53 330,70" fill="#f2d9a8"></polygon>
-          <polygon points="400,43 432,48 400,53" fill="${color}"></polygon>
-        </g>
-        <rect x="16" y="31" width="310" height="8" rx="4" fill="rgba(255,255,255,0.38)"></rect>
-        <rect x="16" y="60" width="310" height="6" rx="3" fill="rgba(0,0,0,0.12)"></rect>
+  // Aclara (amt>0) u oscurece (amt<0) un color hex para armar el sombreado del lápiz.
+  function shadeColor(hex, amt) {
+    const m = /^#?([0-9a-fA-F]{6})$/.exec(hex || '');
+    if (!m) return hex || '#000000';
+    let r = parseInt(m[1].slice(0, 2), 16);
+    let g = parseInt(m[1].slice(2, 4), 16);
+    let b = parseInt(m[1].slice(4, 6), 16);
+    if (amt >= 0) { r += (255 - r) * amt; g += (255 - g) * amt; b += (255 - b) * amt; }
+    else { const k = 1 + amt; r *= k; g *= k; b *= k; }
+    const h = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+    return `#${h(r)}${h(g)}${h(b)}`;
+  }
+
+  // Lápiz de color realista (barril cilíndrico, madera tallada, punta de mina), recoloreable.
+  function makePencilSvg(color, uid) {
+    const id = `pg${uid}`;
+    const hi = shadeColor(color, 0.55);
+    const lo = shadeColor(color, -0.34);
+    const edge = shadeColor(color, -0.10);
+    const lead = shadeColor(color, -0.22);
+    return `<svg viewBox="0 0 480 104" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="${id}b" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="${edge}"></stop>
+            <stop offset="0.16" stop-color="${hi}"></stop>
+            <stop offset="0.5" stop-color="${color}"></stop>
+            <stop offset="1" stop-color="${lo}"></stop>
+          </linearGradient>
+          <linearGradient id="${id}w" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f7e4c0"></stop>
+            <stop offset="0.5" stop-color="#e9c994"></stop>
+            <stop offset="1" stop-color="#c8a160"></stop>
+          </linearGradient>
+        </defs>
+        <polygon points="344,22 456,45 456,59 344,82" fill="url(#${id}w)"></polygon>
+        <polygon points="344,82 456,59 456,63 344,82" fill="rgba(0,0,0,0.16)"></polygon>
+        <polygon points="456,45 480,52 456,59" fill="${lead}"></polygon>
+        <rect x="0" y="22" width="352" height="60" rx="13" fill="url(#${id}b)"></rect>
+        <rect x="14" y="29" width="322" height="9" rx="4.5" fill="#ffffff" opacity="0.42"></rect>
+        <rect x="14" y="70" width="322" height="6" rx="3" fill="rgba(0,0,0,0.18)"></rect>
       </svg>`;
   }
 

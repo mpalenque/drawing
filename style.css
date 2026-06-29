@@ -67,6 +67,7 @@ body {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.3px;
+  z-index: 10;
 }
 .select-screen .copyright { color: #ffffff; }
 .paint-screen .copyright,
@@ -86,7 +87,15 @@ body {
   transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
   transform-origin: center center;
 }
-.choice-btn img { position: static; width: 100%; height: 100%; object-fit: contain; display: block; }
+.choice-btn img {
+  position: static;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  /* Los dibujos vienen con fondo blanco; multiply lo funde con el papel (queda transparente). */
+  mix-blend-mode: multiply;
+}
 .choice-btn:hover,
 .choice-btn:active { transform: scale(1.06) rotate(-1deg); }
 
@@ -97,13 +106,15 @@ body {
    =================================== */
 .paper-bg { left: 0; top: 0; width: 1920px; height: 1200px; object-fit: cover; }
 
+/* Área de dibujo a pantalla completa: el zoom se ve en toda la pantalla, sin marco limitado. */
 .canvas-area {
   position: absolute;
-  left: 264px; top: 24px;
-  width: 1103px; height: 1151px;
+  left: 0; top: 0;
+  width: 1920px; height: 1200px;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 1;
 }
 
 #svg-wrapper {
@@ -121,6 +132,7 @@ body {
   left: 0; top: 0;
   width: 260px; height: 1200px;
   pointer-events: none;
+  z-index: 10;
 }
 .pencil {
   position: absolute;
@@ -154,6 +166,7 @@ body {
   cursor: pointer;
   transform-origin: left center;
   transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+  z-index: 10;
 }
 .eraser-btn img { position: static; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.22)); }
 .eraser-btn:hover { transform: translateX(16px); }
@@ -175,6 +188,7 @@ body {
   -webkit-text-stroke: 5px #1a1a1a;
   paint-order: stroke fill;
   letter-spacing: 1px;
+  z-index: 10;
 }
 
 /* ---- Miniatura color de referencia (abajo derecha) ---- */
@@ -186,6 +200,7 @@ body {
   mix-blend-mode: multiply;
   opacity: 0;
   transition: opacity 0.3s ease;
+  z-index: 5;
 }
 .thumb.is-visible { opacity: 1; }
 
